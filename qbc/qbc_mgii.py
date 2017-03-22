@@ -1,6 +1,6 @@
 from astropy.io import fits
 from astropy.constants import c, G
-from plots import plot_results, plot_results_show, plot_overlap, plot_gc, plot_sum
+from plots import plot_results_show, plot_overlap, plot_gc, plot_sum
 from astropy.table import QTable
 from astropy.table import Column
 from astropy.cosmology import Planck15 as cosmo
@@ -1053,18 +1053,24 @@ if __name__ == '__main__':
 			pares_phot, pares_phot_rejected = cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist_type, master_table_pares_phot)
 			hits_phot, hits_phot_rejected = cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist_type, master_table_hits_phot)
 	
-	# run for dn/dz vs b and dn/dz vs z
-	if m == 1 or m ==3:
+	# run for dn/dz vs b, dn/dz vs ew and dn/dz vs z
+	if m == 1 or m ==2 or m==3:
 
 		# define directory name
 		if m ==1:#dn/dz vs b
 			dir_name = '../saved_files/dndz_v_b/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
 			x_value = dd
+
+		elif m == 2:#dn/dz vs ew
+			dir_name = '../saved_files/dndz_v_ew/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
+			create_dir(dir_name)
+			x_value = 'ew' 
+
 		elif m == 3:#dn/dz vs z
 			dir_name = '../saved_files/dndz_v_z/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
-			x_value = 'ew' #change independen variable from a distance to ew
+			x_value = 'z' 
 
 		#run for spectroscopic clusters
 		if z_cl_type == 'spec' or z_cl_type == 'all':
@@ -1100,7 +1106,7 @@ if __name__ == '__main__':
 			if z_cl_type == 'spec' or z_cl_type == 'all':
 				print('\nResults spec:\n')
 				print(results_spec)
-				plot_results_show(fig, dd, results_spec, color='red')
+				plot_results_show(fig, x_value, results_spec, color='red')
 				legend_spec = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(min_mass, max_mass, min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
 				legend.append(legend_spec)
 			
@@ -1108,7 +1114,7 @@ if __name__ == '__main__':
 			if z_cl_type == 'phot' or z_cl_type=='all':
 				print('\nResults phot:\n')
 				print(results_phot)
-				plot_results_show(fig, dd, results_phot, color='blue')
+				plot_results_show(fig, x_value, results_phot, color='blue')
 				legend_phot = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(min_mass, max_mass, min_EW, max_EW, min_z, max_z, s, 'phot', limit_by)
 				legend.append(legend_phot)
 			
@@ -1146,92 +1152,6 @@ if __name__ == '__main__':
 		# plot_overlap(cl_mass, cl_mass_label, mgii_rew, mgii_rew_label)#Plot for mass bins and ew bins	
 		plot_overlap(cluster_list, cluster_list_label, [mgii], ['MgII'])#Plot for redshift type bins and ew bins
 		print('{} galaxy clusters, {} MgII absorbers and {} Qso'.format(len(cumulo_0), len(mgii_0), len(qso)))
-
-	#Run for dn/dz vs ew	
-	elif m == 2:
-		#Create directory
-		dir_name = '../saved_files/dndz_v_ew/'+grid+'-'+limit_by+'-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))+'-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)+'-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)+'-'+sn_tag
-		create_dir(dir_name)	
-		#run for spectroscopic clusters
-		if z_cl_type == 'spec' or z_cl_type == 'all':
-			print('\nRuning for spectroscopic clusters\n')		
-			#create sub directory			
-			dir_name_inner = dir_name+'/spec/inner'	
-			create_dir(dir_name_inner)
-			#select inner hits
-			cond = hits_spec['sep_200'] < 1.0
-			hits_spec_inner = hits_spec[cond]
-			cond = pares_spec['sep_200'] < 1.0
-			pares_spec_inner = pares_spec[cond]
-			#call to function that makes the calculation
-			grid_pares_spec_inner, grid_hits_spec_inner, red_path_spec_inner, gc_spec_inner, results_spec_inner = dndz_vs_x('ew', dir_name_inner, pares_spec_inner, hits_spec_inner, grt, min_EW.value, max_EW.value, n, z_min, z_max)
-		
-			#create sub directory
-			dir_name_outer = dir_name+'/spec/outer'	
-			create_dir(dir_name_outer)
-			#select outer hits
-			cond = hits_spec['sep_200'] > 1.0
-			hits_spec_outer = hits_spec[cond]
-			cond = pares_spec['sep_200'] > 1.0
-			pares_spec_outer = pares_spec[cond]
-			#call to function that makes the calculation
-			grid_pares_spec_outer, grid_hits_spec_outer, red_path_spec_outer, gc_spec_outer, results_spec_outer = dndz_vs_x('ew', dir_name_outer, pares_spec_outer, hits_spec_outer, grt, min_EW.value, max_EW.value, n, z_min, z_max)
-
-		#Run for photometric clusters
-		if z_cl_type == 'phot' or z_cl_type=='all':
-			print('\nRuning for photometric clusters\n')
-			#create sub directory
-			dir_name_inner = dir_name+'/phot/inner'	
-			create_dir(dir_name_inner)
-			#select inner hits
-			cond = hits_phot['sep_200'] < 1.0
-			hits_phot_inner = hits_phot[cond]
-			cond = pares_phot['sep_200'] < 1.0
-			pares_phot_inner = pares_phot[cond]
-			#call to function that makes the calculations
-			grid_pares_phot_inner, grid_hits_phot_inner, red_path_phot_inner, gc_phot_inner, results_phot_inner = dndz_vs_x('ew', dir_name_inner, pares_phot_inner, hits_phot_inner, grt, min_EW.value, max_EW.value, n, z_min, z_max)
-
-			#create subdirectory
-			dir_name_outer = dir_name+'/phot/outer'	
-			create_dir(dir_name_outer)
-			#slect outer hits
-			cond = hits_phot['sep_200'] > 1.0
-			hits_phot_outer = hits_phot[cond]
-			cond = pares_phot['sep_200'] > 1.0
-			pares_phot_outer = pares_phot[cond]
-			#call to function  that makes the calculations
-			grid_pares_phot_outer, grid_hits_phot_outer, red_path_phot_outer, gc_phot_outer, results_phot_outer = dndz_vs_x('ew', dir_name_outer, pares_phot_outer, hits_phot_outer, grt, min_EW.value, max_EW.value, n, z_min, z_max)
-
-		#show plot of the results
-		if plot_result == 'yes':
-			#create figure
-			fig = plt.figure()
-			legend = []
-
-			#plot for sum of spec and phot results. NOT IN USE
-			# if z_cl_type == 'all':
-				# plot_sum(results_spec,results_phot,'r',-0.95)
-			
-			#plot for spectroscopic results
-			if z_cl_type == 'spec' or z_cl_type == 'all':
-				print('\nResults spec:\n')
-				print(results_spec_inner)
-				plot_results_show(fig, 'ew', results_spec_inner, color='red')
-				legend_spec = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
-				legend.append(legend_spec)
-
-			#plot for photometric results
-			if z_cl_type == 'phot' or z_cl_type=='all':
-				print('\nResults phot:\n')
-				print(results_phot_inner)
-				plot_results_show(fig, 'ew', results_phot_inner, color='blue')
-				legend_phot = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'phot', limit_by)
-				legend.append(legend_phot)
-
-			#add legend and display plot
-			plt.legend(legend, loc='best', fontsize='medium' , numpoints=1)
-			plt.show()
-			fig.clf
 	
 	#Run fo dn/(dz/dw) vs ew (In development)
 	elif  m==4:
@@ -1428,12 +1348,12 @@ if __name__ == '__main__':
 				results_spec = results_table(grid_hits_spec, red_path_spec, grid_pares_spec, dd)
 				with open(dir_name_spec + '/results_'+str(dd)+'.pickle', 'wb') as f:
 					pickle.dump(results_spec, f, protocol=2)
-				plot_results(results_spec, dir_name_spec, dd)	
+				# plot_results(results_spec, dir_name_spec, dd)	
 			except IOError:	
 				results_spec = results_table(grid_hits_spec, red_path_spec, grid_pares_spec, dd)
 				with open(dir_name_spec + '/results_'+str(dd)+'.pickle', 'wb') as f:
 					pickle.dump(results_spec, f, protocol=2)
-				plot_results(results_spec, dir_name_spec, dd)
+				# plot_results(results_spec, dir_name_spec, dd)
 
 		if z_cl_type == 'phot' or z_cl_type=='all':
 
@@ -1509,12 +1429,12 @@ if __name__ == '__main__':
 				results_phot = results_table(grid_hits_phot, red_path_phot, grid_pares_phot, dd)
 				with open(dir_name_phot + '/results_'+str(dd)+'.pickle', 'wb') as f:
 					pickle.dump(results_phot, f, protocol=2)
-				plot_results(results_phot, dir_name_phot, dd)	
+				# plot_results(results_phot, dir_name_phot, dd)	
 			except IOError:	
 				results_phot = results_table(grid_hits_phot, red_path_phot, grid_pares_phot, dd)
 				with open(dir_name_phot + '/results_'+str(dd)+'.pickle', 'wb') as f:
 					pickle.dump(results_phot, f, protocol=2)
-				plot_results(results_phot, dir_name_phot, dd)
+				#plot_results(results_phot, dir_name_phot, dd)
 
 	else:
 		raise ValueError('''Invalid value for -m, choose '1', '2' or '3' 
