@@ -696,7 +696,7 @@ def results_table(x, target1,target2,target3):
 	if (x == 'com' or x == 'pro') or x =='r200':	 
 		results['b_i'][0] = min_IP# pensar una mejor forma de hacer esto
 	elif x=='ew':
-		results['ew_i'][0] = min_EW
+		results['ew_i'][0] = min_EW.value
 	return(results)
 
 def cluster_table(cluster, z_min, z_max, min_mass, max_mass):
