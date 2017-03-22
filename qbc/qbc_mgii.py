@@ -1113,7 +1113,7 @@ if __name__ == '__main__':
 				print('\nResults spec:\n')
 				print(results_spec)
 				plot_results_show(fig, x_value, results_spec, color='red')
-				legend_spec = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(min_mass, max_mass, min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
+				legend_spec = 'mass 1e{} Msun to 1e{} Msun, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
 				legend.append(legend_spec)
 			
 			#plot for photpmetric results
@@ -1121,8 +1121,8 @@ if __name__ == '__main__':
 				print('\nResults phot:\n')
 				print(results_phot)
 				plot_results_show(fig, x_value, results_phot, color='blue')
-				legend_phot = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(min_mass, max_mass, min_EW, max_EW, min_z, max_z, s, 'phot', limit_by)
-				legend.append(legend_phot)
+				legend_phot = 'mass 1e{} Msun to 1e{} Msun, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
+				llegend.append(legend_phot)
 			
 			#add legend and display plot
 			plt.legend(legend, loc='best', fontsize='medium' , numpoints=1)
