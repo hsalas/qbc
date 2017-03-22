@@ -1,6 +1,6 @@
 from astropy.io import fits
 from astropy.constants import c, G
-from plots_v2 import plot_results, plot_results_show, plot_overlap, plot_gc, plot_sum
+from plots import plot_results, plot_results_show, plot_overlap, plot_gc, plot_sum
 from astropy.table import QTable
 from astropy.table import Column
 from astropy.cosmology import Planck15 as cosmo
@@ -29,7 +29,9 @@ parser.add_argument('-maxew', '--max_EW', type=float, default=2.0, dest='maxEW',
 parser.add_argument('-minmass', '--min_mass', type=float, default=13.6, dest='minmass', metavar='MINM', help='Float. Minimim cluster mass to be considered in units of log10(Msun). Default value 13.6',action='store')
 parser.add_argument('-maxmass', '--max_mass', type=float, default=20.0, dest='maxmass', metavar='MAXM', help='Float. Maximum cluster mass to be considered in units of log10(Msun). Default value 20.0',action='store')
 parser.add_argument('-minz', '--min_z', type=float, default=0, dest='minz', metavar='MINZ', help='Float. Minimum redshift to be considered. Default value 0.',action='store')
-parser.add_argument('-maxz', '--max_z', type=float, default=10, dest='maxz', metavar='MAXZ', help='Float. Maximum redshift to be considered. Default value 10.',action='store')
+parser.add_argument('-max', '--max_z', type=float, default=10, dest='maxz', metavar='MAXZ', help='Float. Maximum redshift to be considered. Default value 10.',action='store')
+parser.add_argument('-minip', '--min_IP', type=float, default=0.1, dest='minIP', metavar='MINIP', help='Float. Minimum impact parameter to be considered. Default value 0.1',action='store')
+parser.add_argument('-maxip', '--max_IP', type=float, default=40, dest='maxIP', metavar='MAXIP', help='Float. Maximum impact parameter to be considered. Default value 40.',action='store')
 parser.add_argument('-pr', '--plot_result', type=str, default='no', dest='plotresult', metavar='PR', help='''str. Whether to display a plot of the reuslts. Default 'no'.''', action='store')
 parser.add_argument('-s', '--significance', type=float, default=3, dest='significance', metavar='S', help='Float. Significance of the min equivalent width',action='store')
 parser.add_argument('-s2n', '--signal2noise', type=str, default='local', dest='signaltonoise', metavar='S2N', help="str. Signal to noise to be use, 'local' or 'global'. Default 'local'.",action='store')
@@ -40,7 +42,6 @@ parser.add_argument('-zct', '--z_cl_type', type=str, default='all', dest='zcltyp
 parser.add_argument('-d', '--distance', type=str, default='com', dest='d', metavar='D', help='str. Type of distance to to be used: comoving(com), proper(pro) or R_200(r200). Default value com',action='store')
 parser.add_argument('-gr', '--grid_type', type=str, default='log', dest='gridtype', metavar='GR', help='''str. Grid type to be used, linear 'lin', logarithmic 'log' , same number hits per bin 'snh', or same number pairs per bin 'snp'.''', action='store')
 parser.add_argument('-n', '--number_bins', type=float, default=1.0, dest='nbins', metavar='NB', help='float. Scale factor for the number of bins to use in the grid',action='store')
-parser.add_argument('-b', '--impact_parameter', type=float, default=40, dest='impactparameter', metavar='B', help='maximum impact parameter to use in the grid',action='store')
 parser.add_argument('-m', '--mode', type=int, default=1, dest='mode', metavar='M', help='''int. Mode in which the program wil be run, with the following options. 
 					0: Plot Redshift Distribution of MgII absorbres and Galaxy clusters
 					1: Run dn/dz vs Impact Parameter (default) 
@@ -57,19 +58,19 @@ min_mass = arguments.minmass # in log10(Msun)
 max_mass = arguments.maxmass # in log10(Msun)
 min_EW = arguments.minEW # in AA
 max_EW = arguments.maxEW # in AA
-min_z = arguments.minz # in AA
-max_z = arguments.maxz # in AA
+min_z = arguments.minz 
+max_z = arguments.maxz 
+min_IP = arguments.minIP # in units of dd (Mpc comoving, Mpc proper or R200)
+max_IP = arguments.maxIP # in units of dd (Mpc comoving, Mpc proper or R200)
 z_cl_type = arguments.zcltype
 s = arguments.significance
 sn = arguments.signaltonoise
-b = arguments.impactparameter
 n = arguments.nbins
 grt = arguments.gridtype
 m = arguments.mode
-dd = arguments.d
+dd = arguments.d # distance units
 plot_result =arguments.plotresult
 
-b_0 = 0.1 # minimum value for impact parameter
 delta_v = 500.0*(u.km/u.s)
 l_0 = 2796.3542699 # rest wavelength mgii in AA
 lmin_sdss = 3800.0 
@@ -106,6 +107,7 @@ def create_dir(dir_name):
 		os.makedirs(dir_name)	
 
 def names(alias):
+	'''Gives the value for 'alias' 'according to 'alias_dict'  defined above'''
 	try:
 		name = alias_dict[alias]
 		return name
@@ -116,10 +118,10 @@ def dztodv(dz,z):
 	'''Transform a redshift difference (dz) to a velocity difference at redshift z, the result is given in Km/s
 	
 	inputs: 
-		dz: Redshift difference (float).
-		z: Redshift (float).
+		dz:	Redshift difference (float).
+		z:	Redshift (float).
 	returns:
-		dv: velocity difference in km/s (quantity)
+		dv:	Velocity difference in km/s (quantity).
 	'''	
 	dv = dz*c/(1.0+z)
 	dv = dv.to(u.km/u.s)
@@ -129,10 +131,10 @@ def dvtodz(dv,z):
 	'''Takes a difference in velocity in km/s and transform it to a difference in redshift
 
 	inputs: 
-		dv: velocity difference in Km/s (quantity)
-		z: Redshift (float).
+		dv:	Velocity difference in Km/s (quantity).
+		z:	Redshift (float).
 	returns:
-		dz: Redshift difference (float).
+		dz: 	Redshift difference (float).
 	'''
 	dv = dv.to(u.m/u.s)
 	dz = dv*(1.0+z)/c
@@ -143,11 +145,11 @@ def w_min(sn, z, s):
 	'''Gives the minimum resolution width as a function of redshift (z), signal to noise ratio (sn), Sloan resolution (sdss) and significance value (s)
 	
 	inputs: 
-		sn: Signal to noise ratio (float).
-		z: Redshift (float).
-		s: Significance (float).
+		sn: 	Signal to noise ratio (float).
+		z: 	Redshift (float).
+		s: 	Significance (float).
 	returns:
-		w: minimum resolution width (float).
+		w: 	minimum resolution width (float).
 	'''
 	w = s*l_obs(l_0,z)/(sn*r_sdss(z))
 	return(w)
@@ -156,10 +158,10 @@ def l_obs(l0,z):
 	'''Gives the observed wavelength for l0 at redshift z.
 
 	inputs: 
-		l0: Rest wavelength (float).
-		z: Redshift (float).
+		l0: 	Rest wavelength (float).
+		z: 	Redshift (float).
 	returns:
-		l: observed wavelength (float).
+		l: 	observed wavelength (float).
 	'''
 	l = l0*(1.0+z)
 	return(l)
@@ -168,9 +170,9 @@ def r_sdss(z):
 	'''Gives the Sloan resolution for the observed MgII wavelength (rest W. 2796 AA), based on a linear model with a resolution of 1500 at 3800 AA and 2500 at 9200 AA
 	
 	inputs: 
-		z: Redshift (float).
+		z: 	Redshift (float).
 	returns:
-		y: Sloan resolution of MgII_2796 at redshift z (float). 
+		y: 	Sloan resolution of MgII_2796 at redshift z (float). 
 	'''
 	x = l_obs(l_0,z)
 	y = (2500.0-1500.0)/(lmax_sdss-lmin_sdss)*(x-lmin_sdss)+1500.0
@@ -180,13 +182,13 @@ def bins_edges(tabla, tipo, name, begin, end, n_bins, n):
 	'''Calls to the corresponding functions to create the different bins edges.
 
 	input: 
-		tabla: Table with the data (QTable).
-		tipo: Type of binning to be used (str).
-		name:(str)
-		begin: Starting point of the binning (float).
-		end: Final point of the bining (float).
-		n_bins: Number of bins (int).
-		n: 'scale' factor for n_bins, n_bins will be multiplied by this number (float).
+		tabla: 	Table with the data (QTable).
+		tipo: 	Type of binning to be used (str).
+		name:	Name of property to use in the binnig (str). Eg. sep comoving, sep proper, mass.
+		begin: 	Starting point of the binning (float).
+		end: 	Final point of the bining (float).
+		n_bins: 	Number of bins (int).
+		n: 	'scale' factor for n_bins, n_bins will be multiplied by this number (float).
 
 	output:
 		edges: Array with the bin's edges (numpy.ndarray).
@@ -201,7 +203,7 @@ def bins_edges(tabla, tipo, name, begin, end, n_bins, n):
 		edges = bins(tipo, begin, end, n)
 	elif tipo == 'lopez':
 		edges = [0.05, 0.15,0.3,0.6, 1,2,3]
-	elif tipo == 'one'
+	elif tipo == 'one':
 		edges = [begin, end]
 	else:
 		raise ValueError('''Choose a valid option for the input: 'lin'  or 'log' , 'snh'', 'snp'.''')
@@ -211,11 +213,12 @@ def bins(tipo, begin, end, n):
 	'''Creates an array with the edges of the bins to be used.
 
 	input: 
-		tipo: Type of bins to be used, linear 'lin', logarithmic 'log' (str).
-		b: Max valuo of the grid (float)
-		n: number of bins to use (int)
+		tipo: 	Type of bins to be used, linear 'lin', logarithmic 'log' (str).
+		begin:	Initial point of the binning (float)
+		end: 	Final point of the binning (float).
+		n: 	Number of bins to use (int).
 	returns:
-		grid: Array with the bin's edges (numpy.ndarray).
+		grid: 	Array with the bin's edges (numpy.ndarray).
 	'''
 	if tipo == 'lin':
 		grid = np.linspace(begin, end, n+1)
@@ -229,14 +232,14 @@ def bin_same_number(tabla, name, begin, end, n):
 	''' Creates bins with the same number of elements
 
 	input:
-		table: Table with the data (QTable).
-		name: Name of property to use to  eg. sep comoving, sep proper, mass (str)
-		begin: Starting point of the binning (float).
-		end: Final point of the bining (float).
-		n: Number of bins (int).
+		table: 	Table with the data (QTable).
+		name: 	Name of property to use to  eg. sep comoving, sep proper, mass (str)
+		begin: 	Starting point of the binning (float).
+		end: 	Final point of the bining (float).
+		n: 	Number of bins (int).
 	
 	output:
-		bins: Array with the bin's edges (numpy.ndarray).
+		bins: 	Array with the bin's edges (numpy.ndarray).
 	'''
 	if name =='mass':
 		if 'mass' in tabla.keys():
@@ -256,9 +259,9 @@ def err_plus(n):
 	'''Gives an estimate of the upper confidence limit for n.
 
 	input: 
-		n: Observed value (float).
+		n:	Observed value (float).
 	returns:
-		ul:upper confidence limit (float).
+		ul:	Upper confidence limit (float).
 	'''
 	ucl = np.sqrt(n+3./4.)
 	return(ucl)
@@ -267,9 +270,9 @@ def err_minus(n):
 	'''Gives an estimate of the lower confidence limit for n.
 
 	input: 
-		n: Observed value (float).
+		n:	Observed value (float).
 	returns:
-		lcl: ll confidence limit (float).
+		lcl:	 Lower confidence limit (float).
 	'''
 	if n == 0:
 		lcl = 0
@@ -277,30 +280,40 @@ def err_minus(n):
 		lcl = np.sqrt(n-1./4.)
 	return(lcl)
 
-def max_angular_dist(d,clusters,qso):
+def max_angular_dist(d, clusters, qso):
 	''' returns all cluster Qso pairs with an angular distance lower than d.
 
 	inputs:
-		d: Angular distance (quantity).
-		cluster: Galaxy clusters catalog (Table).
-		qso: Qso/MgII absorbers catalog (Table).
+		d: 	Angular distance (quantity).
+		cluster: 	Galaxy clusters catalog (Table).
+		qso: 	Qso/MgII absorbers catalog (Table).
 	returns:
-		id_cl: Index of the pairs in the clusters table (int).
-		id_mgii: Index of the pairs in the qso table (int).
-		sep2d: Angular separation of the pairs (Angle).
+		id_cl: 	Index of the pairs in the clusters table (int).
+		id_mgii:	Index of the pairs in the qso table (int).
+		sep2d: 	Angular separation of the pairs (Angle).
 	'''
 	mgii_coord = coord.SkyCoord(qso['ra'], qso['dec'], unit='deg')
 	cluster_coord = coord.SkyCoord(clusters['ra'], clusters['dec'], unit='deg')
 	id_mgii, id_cl, sep2d, _ = cluster_coord.search_around_sky(mgii_coord, d)
 	return(id_cl, id_mgii, sep2d)
 
-def cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, tabla):      
-	''' returns a table with all cluster/qso pairs with an impact parameter lower than b.
+def cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist,  tabla):      
+	''' Takes a table with with cluster/qso pairs and returns only the pairs that obey the inputs limits.
 
 	inputs:	
-		b: impact parameter in Mpc (float).
-		s: significance of MgII detection (float).
-		T
+	 	s :	significance of MgII detection (float).
+		z_min:	Minimum redshift redshift where detection is possible (float). Given by survey limits
+		z_max:	Maximum redshift redshift where detection is possible (float). Given by survey limits
+		min_EW:	Minimum equivalent width to consider in AA (Quantity).
+		min_mass:	Minimum cluster mass to consider in solar mass units (Quantity).
+		max_mass:	Maximum cluster mass to consider in solar mass units (Quantity).
+		min_z:	Minimum redshift redshift to consider (float). Chosen by user.
+		max_z:	Maximum redshift redshift to consider (float). Chosen by user.
+		min_IP:	Minimum impact parameter to be considered in units of dist (float).
+		max_IP:	Maximum Impact parameter to be considered in units of dist(float).
+		dist:	Units of distance for impact parameter (str). 
+				Acepted values:	sep_comoving, sep_proper or sep_200.
+		tabla:	Table with all the clusters/qso pairs (QTable).
 	returns:
 		tabla: Table with the clusters/qso pairs (QTable).
 		tabla_rejected: Table with the rejected clusters/qso pairs (QTable).
@@ -311,6 +324,13 @@ def cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, tabla)
 	tabla_rejected.add_column(col)
 	tabla_rejected['rejected'] = 'no'
 
+	#removes pairs with impact parameter > max_IP in units of dist
+	cond = tabla[dist] > max_IP
+	tabla_rejected['rejected'][cond] = 'IP > max_IP'
+	#removes pairs with impact parameter < min_IP in units of dist
+	cond = tabla[dist] < min_IP
+	tabla_rejected['rejected'][cond] = 'IP < min_IP'
+	#removes pairs with z_cluster > than z_qso
 	cond = tabla['z_cluster'] >= tabla['z_qso']
 	tabla_rejected['rejected'][cond] = 'z_cluster >= Z_qso'
 	#removes pairs with mass < min_mass
@@ -353,6 +373,7 @@ def cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, tabla)
 	cond =	tabla_rejected['rejected'] != 'no'
 	tabla_rejected = tabla_rejected[cond]
 
+	# add corresponing units to columns
 	tabla['sep_angular'].unit = u.deg
 	tabla['ra_cluster'].unit = u.deg
 	tabla['dec_cluster'].unit = u.deg
@@ -365,16 +386,26 @@ def cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, tabla)
 	tabla['sep_proper'].unit = u.Mpc
 	return(tabla, tabla_rejected)
 
-def cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z,  tabla):
-	'''Finds all the absorbers/cluster pairs in target with a velocity difference lower than 'delta_v' km/s and a REW greater that 'min_EW'
-	All pairs with z_qso < z_cluster are discarded.
+def cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist,  tabla):
+	'''Takes a table with  absorbers/cluster pairs and returns only the hits that obey the inputs limits.
 	 
 	 inputs:
-	 	s : significance of MgII detection (float).
-		b: impact parameter in Mpc (float).
+	 	s :	significance of MgII detection (float).
 		cluster: Galaxy clusters catalog (Table).
-		mgii: MgII absorbers catalog (Table).
-		min_EW: Minimum  
+		z_min:	Minimum redshift redshift where detection is possible (float). Given by survey limits
+		z_max:	Maximum redshift redshift where detection is possible (float). Given by survey limits
+		min_EW:	Minimum equivalent width to consider in AA (Quantity).
+		max_EW:	Maximum equivalent width to consider in AA (Quantity).
+		min_mass:	Minimum cluster mass to consider in solar mass units (Quantity).
+		max_mass:	Maximum cluster mass to consider in solar mass units (Quantity).
+		min_z:	Minimum redshift redshift to consider (float). Chosen by user.
+		max_z:	Maximum redshift redshift to consider (float). Chosen by user.
+		min_IP:	Minimum impact parameter to be considered (float).
+		max_IP:	Maximum Impact parameter to be considered (float).
+		dist:	Units of distance for impact parameter (str). 
+				Acepted values:	sep_comoving, sep_proper or sep_200.
+		tabla:	Table with the clusters/qso pairs (QTable).
+
 	returns:
 		tabla: Table with the MgII absorbers/qso pairs (QTable).
 		tabla_rejected: Table with the rejected MgII absorbers/qso pairs (QTable).
@@ -385,6 +416,13 @@ def cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z,
 	tabla_rejected.add_column(col)
 	tabla_rejected['rejected'] = 'no'
 
+	#removes pairs with impact parameter > max_IP in units of dist
+	cond = tabla[dist] > max_IP
+	tabla_rejected['rejected'][cond] = 'IP > max_IP'
+	#removes pairs with impact parameter < min_IP in units of dist
+	cond = tabla[dist] < min_IP
+	tabla_rejected['rejected'][cond] = 'IP < min_IP'
+	#removes pairs with z_cluster > than z_qso
 	cond = tabla['z_cluster'] >= tabla['z_qso']
 	tabla_rejected['rejected'][cond] = 'z_cluster >= Z_qso'
 	#removes pairs with ew < min_EW
@@ -433,8 +471,9 @@ def cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z,
 	cond =	tabla_rejected['rejected'] == 'no'
 	tabla = tabla[cond]			
 	cond =	tabla_rejected['rejected'] != 'no'
-	tabla_rejected = tabla_rejected[cond]	
+	tabla_rejected = tabla_rejected[cond]
 
+	# add corresponing units to columns
 	tabla['sep_angular'].unit = u.deg
 	tabla['ra_cluster'].unit = u.deg
 	tabla['dec_cluster'].unit = u.deg
@@ -469,11 +508,11 @@ def grilla(tabla, grid, name):
 	correspond to the right edge of the corresponding bin.
 
 	input:
-		tabla: Table with clusters/Qso pairs or with cluster/absorbers hits (QTable).
-		grid: array with the edges of the bins to be used (numpy.ndarray).
-		name: Name of property used in the grid eithr one of the three disctances: 'pro', comoving 'com' or r200 'r200' (str), or ew.
+		tabla:	Table with clusters/Qso pairs or with cluster/absorbers hits (QTable).
+		grid: 	array with the edges of the bins to be used (numpy.ndarray).
+		name: 	Name of property used in the grid (str). Either one of the three disctances: 'pro', 'com', 'r200' , or ew.
 	returns:
-		grid_result: Dictionary with the table data separated by the bins defined by grid (dict).
+		grid_result:	Dictionary with the table data separated by the bins defined by grid (dict).
 	'''
 	grid_result = {}
 	tag = names(name) 
@@ -516,13 +555,13 @@ def g_c(tabla, zmin, zmax, delta):
 	'''Calculates the 'cluster redshift path density' between zmin and zmax.
 
 	inputs:	
-		tabla: Table with clusters/Qso pairs (QTable).
-		zmin:  minimum redshift (float).
-		zmax: maximum redshift(float).
-		delta: step to be used in the redshift path calculation (float).
+		tabla:	Table with clusters/Qso pairs (QTable).
+		zmin: 	Minimum redshift (float).
+		zmax:	Maximum redshift(float).
+		delta:	Step to be used in the redshift path calculation (float).
 	returns:
-		z: Array of redshifts starting at zmin and ending at zmax with a step delta (numpy.ndarray).
-		g: Array containing the value of the redshift path density for each value of z (numpy.ndarray).
+		z:	Array of redshifts starting at zmin and ending at zmax with a step delta (numpy.ndarray).
+		g:	Array containing the value of the redshift path density for each value of z (numpy.ndarray).
 	'''
 	z =  np.linspace(zmin, zmax, int((zmax-zmin)/delta), endpoint=True)
 	g = np.zeros(len(z))
@@ -542,12 +581,12 @@ def z_path(tabla, zmin, zmax):
 	'''integration of the redshift path density in the redshift interval [z_min,z_max]
 		
 	inputs:	
-		tabla: Table with clusters/Qso pairs (QTable).
-		zmin:  minimum redshift (float).
-		zmax: maximum redshift (float).
+		tabla:	Table with clusters/Qso pairs (QTable).
+		zmin:  	Minimum redshift (float).
+		zmax: 	Maximum redshift (float).
 	returns:
-		aux2: Redshift path (float).
-		gc: Table with the data of the redshift path density(QTable).
+		aux2: 	Redshift path (float).
+		gc: 	Table with the data of the redshift path density(QTable).
 	'''
 	if len(tabla) == 0:
 		gc = QTable(names=['z','gc'])
@@ -565,12 +604,12 @@ def redshift_path(target, zmin, zmax):
 	'''Gives the redshift path for different values of the impact parameter.
 	
 	input:
-		target: Dictionary with tables for the different values of the impact parameter (dict).
-		zmin: minimum redshift (float)
-		zmax: maximum redshift (float)
+		target:	Dictionary with tables for the different values of the impact parameter (dict).
+		zmin:	Minimum redshift (float)
+		zmax: 	Maximum redshift (float)
 	returns:
-		aux: Dictionary with the redshift path for each table in the target dictionary (dict).
-		aux2: Dictionary with the redshift path density for each table in the target dictionary (dict).
+		aux: 	Dictionary with the redshift path for each table in the target dictionary (dict).
+		aux2: 	Dictionary with the redshift path density for each table in the target dictionary (dict).
 	'''
 	print('Obtaining Redshift path')	
 	a = target.keys()
@@ -594,11 +633,11 @@ def results_table(x, target1,target2,target3):
 	'''creates a QTable with the results
 	
 	inputs:	
-		target1: Dictionary with number of hits (dict).
-		target2: Dictionary with redshift path (dict).
-		target3: Dictionary with number of pairs (dict).
+		target1:	Dictionary with number of hits (dict).
+		target2:	Dictionary with redshift path (dict).
+		target3: 	Dictionary with number of pairs (dict).
 	returns:
-		results: Table summarizing the results stored in the dictionaries 'target1', 'target2' and 'target3' (QTable). 		
+		results: 	Table summarizing the results stored in the dictionaries 'target1', 'target2' and 'target3' (QTable). 		
 	'''
 	a = target1.keys()
 	a = list(a)
@@ -655,7 +694,7 @@ def results_table(x, target1,target2,target3):
 		if results['dn'][i] > results['#pares'][i]:
 			raise ValueError('This should not happen.')	
 	if (x == 'com' or x == 'pro') or x =='r200':	 
-		results['b_i'][0] = b_0# pensar una mejor forma de hacer esto
+		results['b_i'][0] = min_IP# pensar una mejor forma de hacer esto
 	elif x=='ew':
 		results['ew_i'][0] = 0.1
 	return(results)
@@ -665,16 +704,16 @@ def cluster_table(cluster, z_min, z_max, min_mass, max_mass):
 
 	inputs:
 		cluster: 
-		z_min: Lower redshift limit (float).
-		z_max: Upper redshift limit (float).
-		min_mass: Lower mass limit in solar mass units (Quantity).
-		max_mass: Upper mass limit in solar mass units (Quantity).
+		z_min:	Lower redshift limit (float).
+		z_max:	Upper redshift limit (float).
+		min_mass:	Lower mass limit in solar mass units (Quantity).
+		max_mass:	Upper mass limit in solar mass units (Quantity).
 	returns:
-		cluster: Table with the selected cluster data (QTable).
-		cluster_spec: Table with the selected cluster data, only spectroscopic redshift (QTable).
-		cluster_phot: Table with the selected cluster data, only photometric redshift (QTable).
-		cluster_rejected: Table with the rejected cluster data (QTable).
-		cluster_0: Table with all the cluster data (QTable).
+		cluster:	Table with the selected cluster data (QTable).
+		cluster_spec: 	Table with the selected cluster data, only spectroscopic redshift (QTable).
+		cluster_phot: 	Table with the selected cluster data, only photometric redshift (QTable).
+		cluster_rejected:	Table with the rejected cluster data (QTable).
+		cluster_0: 	Table with all the cluster data (QTable).
 	'''
 	cluster = QTable(cluster, names = [name.lower() for name in cluster.names])
 	cluster['z_lambda'].name = 'z_phot'
@@ -704,9 +743,9 @@ def cluster_table(cluster, z_min, z_max, min_mass, max_mass):
 	cluster['r200_mpc'] = r_200
 	sigma_v =np.sqrt(G*mass_200/r_200)
 
-	# Adds a column with a velocity difference (dv) in the cluster table,
-	# if the cluster have a spectroscopic redshift the dv is obtained from rho_200 and mass_200 ussing the virial eq.
-	# otherwise the error in the photometric redshift is used
+	# Adds a column with a velocity difference (dv) in the cluster table.
+	# If the cluster have a spectroscopic redshift dv is obtained from rho_200 and mass_200 ussing the virial eq.
+	# Otherwise the error in the photometric redshift is used
 	cluster['delta_v'] = np.zeros(len(cluster), dtype='f4') + sigma_v
 	cond = cluster['z_spec'] == -1
 	cluster['delta_v'][cond] = dztodv(cluster['z_phot_err'][cond], cluster['z_phot'][cond])
@@ -751,14 +790,14 @@ def mgii_table(mgii, mgii_search, min_EW, max_EW, z_max_cluster, ls):
 
 		mgii:
 		mgii_search:
-		min_EW: Lower rest frame equivalent width limit (float).
-		max_EW: Upper rest frame equivalent width limit (float).
-		z_max_cluster = maximum galaxy clusters redshit plus delta,z_max_cluster= p.max(cumulo['z']+0.2) (float).
+		min_EW:	Lower rest frame equivalent width limit (float).
+		max_EW: 	Upper rest frame equivalent width limit (float).
+		z_max_cluster:  Maximum galaxy clusters redshit plus delta z (float). z_max_cluster= p.max(cumulo['z']+0.2).
 	returns:
-		mgii: Table with the selected MgII absorbers data (QTable)
-		mgii_search: Table with the Qso searched for MgII absorbers data(QTable).
-		mgii_rejected: Table with the rejected MgII absorbers data  (QTable).
-		mgii_0: Table with all the MgII absorbers data (QTable)	.
+		mgii:	Table with the selected MgII absorbers data (QTable)
+		mgii_search:	Table with the Qso searched for MgII absorbers data(QTable).
+		mgii_rejected: 	Table with the rejected MgII absorbers data  (QTable).
+		mgii_0: 	Table with all the MgII absorbers data (QTable)	.
 	'''
 	mgii = QTable(mgii,names=[name.lower() for name in mgii.names])
 
@@ -847,12 +886,12 @@ def load_master_tables(z_cl_type, mode):
 	'''Loads the master tables
 
 	input:
-		z_cl_type: Clustrer's redshift type, 'spec' or 'phot' (str)
-		mode: Type of tables to use, this will define whow the program is run. 
-			mode='test' will load test table resulting  in a test running mode.
-			mode='neil' will load tables with inputs similar to those used in neil's version of the code, resulting in a mode compare with those results
-			mode='spec_p' will load a version of the spectroscopic clusters table in which their photometric values are used instead of the spectroscopic. photometric clusters will not be affected
-			anything else will result in loading the standard tables, resulting in a normalrun of the program
+		z_cl_type:	Clustrer's redshift type, 'spec' or 'phot' (str)
+		mode:	Type of tables to use, this will define whow the program is run. 
+				mode='test' will load test table resulting  in a test running mode.
+				mode='neil' will load tables with inputs similar to those used in neil's version of the code, resulting in a mode compare with those results
+				mode='spec_p' will load a version of the spectroscopic clusters table in which their photometric values are used instead of the spectroscopic. photometric clusters will not be affected
+				Anything else will result in loading the standard tables, resulting in a normalrun of the program
 	output
 		master_table_pares_xxxx master table containnig the pairs. xxxx=z_cl_type used 
 		master_table_hits_xxxx master table containg the hits. xxxx=z_cl_type used
@@ -912,12 +951,35 @@ def load_master_tables(z_cl_type, mode):
 		raise ValueError('Select a valid option, "spec" or "phot". ')
 
 def dndz_vs_x(x, dir_name, pares, hits, tipo, begin, end, n, z_min, z_max):
-	'''Calls to the fucntions to calculate dn/dz = dn/dz(b)'''
+	'''Calls to the fucntions to calculate dn/dz = dn/dz(x)
+ 	
+	Inputs 
+		x:	Variable against wich calculate dn/dz (str). 
+			Accepted values: 	'com', 'pro' or 'r200' for impact parameter. 
+						'ew' for equvalent with
+		dir_name:	Directory name fore save the results (str).
+		master_table_pares:	Master tababe with all the lines of sigth pairs (QTable).
+		master_table_hits:	Master tababe with all the possible hits (QTable).
+		tipo: 	Type of grid to be used for x (str). 
+			Accepted values:	log: Logarithmic grid.
+						lin: Linear grid.
+			    			snh: Same number of hits per bin.
+			    			snp: Same number of pairs per bin.
+			    			neil: Grid used in neil's code .
+			    			one: One single bin.
+		begin:	Starting point of the grid (float). Should be equal to min_ip  value.
+		end:	Ending point of the grid (float). Shoul be equal to max_ip value
+		n:	Number of point in the grid (int).
+		z_min:		Minimum redshift redshift where detection is possible (float). Given by survey limits
+		z_max:		Maximum redshift redshift where detection is possible (float). Given by survey limits
 
-	#cuts corresponding to the input or default values  on the master tables
-	pares, pares_rejected  = cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z,  master_table_pares)
-	hits, hits_rejected = cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z,  master_table_hits)
-
+	Outputs:
+		grid_pares:
+		grid_hits:
+		red_path:
+		gc:
+		results:
+	'''
 	#create bins
 	n_bins = np.log2(len(hits)) #+ 1.
 	if  tipo == 'snh':
@@ -955,12 +1017,16 @@ if __name__ == '__main__':
 	limit_by = names(ls)
 	dist_type = names(dd)
 
-	grid = grt+'_b'+str(b)+'_n'+str(n)
+	grid_str = grt+'_n'+str(n)
+	mass_str = '-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))
+	ew_str = '-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)
+	z_str = '-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)
+	ip_str = '-ip_{:1f}_to_{:1f}'.format(min_IP, max_IP)
 
 	if sn == 'global':
-		sn_tag = 's_{:.1f}'.format(s)
+		sn_tag = '-s_{:.1f}'.format(s)
 	elif sn == 'local':
-		sn_tag = 's_{}_local'.format(s)
+		sn_tag = '-s_{}_local'.format(s)
 
 	# read the catalogs
 	cluster, mgii, mgii_search = load_catalogs(ls)
@@ -968,46 +1034,37 @@ if __name__ == '__main__':
 	cumulo, cumulo_spec, cumulo_phot,cumulo_rejected, cumulo_0 = cluster_table(cluster, z_min, z_max, min_mass, max_mass)
 	mgii, qso, mgii_rejected, mgii_0 = mgii_table(mgii, mgii_search, min_EW, max_EW, 2.2827778, ls)
 
-	#load master tables and make the corresponding cuts
+	#load master tables and make cuts corresponding to input values
 	if m !=0 :
 		
 		# run for spec
 		if z_cl_type == 'spec' or  z_cl_type =='all':
 			#load spectroscopic master tables
 			master_table_hits_spec, master_table_pares_spec = load_master_tables('spec', running_mode)
-			#remove everything with an impact parameter greater than b
-			cond = master_table_hits_spec[dist_type] < b
-			master_table_hits_spec = master_table_hits_spec[cond]
-			cond = master_table_pares_spec[dist_type] < b
-			master_table_pares_spec = master_table_pares_spec[cond]
 			#cuts corresponding to the input or default values  on the master tables
-			pares_spec, pares_spec_rejected  = cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z,  master_table_pares_spec)
-			hits_spec, hits_spec_rejected = cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z,  master_table_hits_spec)
+			pares_spec, pares_spec_rejected  = cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist_type, master_table_pares_spec)
+			hits_spec, hits_spec_rejected = cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist_type, master_table_hits_spec)
 
 		#run for phot
 		if z_cl_type =='phot' or z_cl_type == 'all':
 			#load photmetric master tables 
 			master_table_hits_phot, master_table_pares_phot = load_master_tables('phot', running_mode)
-			#remove everything with an impact parameter greater than b
-			cond = master_table_hits_phot[dist_type] < b
-			master_table_hits_phot = master_table_hits_phot[cond]
-			cond = master_table_pares_phot[dist_type] < b
-			master_table_pares_phot = master_table_pares_phot[cond]
 			#cuts corresponding to the input or default values  on the master tables
-			pares_phot, pares_phot_rejected = cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z,  master_table_pares_phot)
-			hits_phot, hits_phot_rejected = cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z,  master_table_hits_phot)
+			pares_phot, pares_phot_rejected = cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist_type, master_table_pares_phot)
+			hits_phot, hits_phot_rejected = cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z, min_IP, max_IP, dist_type, master_table_hits_phot)
 	
 	# run for dn/dz vs b and dn/dz vs z
 	if m == 1 or m ==3:
 
 		# define directory name
 		if m ==1:#dn/dz vs b
-			dir_name = '../saved_files/dndz_v_b/'+grid+'-'+limit_by+'-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))+'-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)+'-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)+'-'+sn_tag
+			dir_name = '../saved_files/dndz_v_b/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
+			x_value = dd
 		elif m == 3:#dn/dz vs z
-			dir_name = '../saved_files/dndz_v_z/'+grid+'-'+limit_by+'-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))+'-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)+'-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)+'-'+sn_tag
+			dir_name = '../saved_files/dndz_v_z/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
-			dd = 'ew' #change independen variable from a distance to ew
+			x_value = 'ew' #change independen variable from a distance to ew
 
 		#run for spectroscopic clusters
 		if z_cl_type == 'spec' or z_cl_type == 'all':
@@ -1018,7 +1075,7 @@ if __name__ == '__main__':
 				dir_name_spec = dir_name+'/spec_p'
 			create_dir(dir_name_spec)
 			#call to the function that makes the calculations
-			grid_pares_spec, grid_hits_spec, red_path_spec, gc_spec, results_spec = dndz_vs_x(dd, dir_name_spec, pares_spec, hits_spec, grt, b_0, b, n, z_min, z_max)
+			grid_pares_spec, grid_hits_spec, red_path_spec, gc_spec, results_spec = dndz_vs_x(x_value, dir_name_spec, pares_spec, hits_spec, grt, min_IP, max_IP, n, z_min, z_max)
 
 		#run for photometric clusters
 		if z_cl_type == 'phot' or z_cl_type=='all':
@@ -1027,7 +1084,7 @@ if __name__ == '__main__':
 			dir_name_phot = dir_name+'/phot'	
 			create_dir(dir_name_phot)
 			#call to the functions that makes the calculations
-			grid_pares_phot, grid_hits_phot, red_path_phot, gc_phot, results_phot = dndz_vs_x(dd, dir_name_phot, pares_phot, hits_phot, grt, b_0, b, n, z_min, z_max)
+			grid_pares_phot, grid_hits_phot, red_path_phot, gc_phot, results_phot = dndz_vs_x(x_value, dir_name_phot, pares_phot, hits_phot, grt, min_IP, max_IP, n, z_min, z_max)
 
 		#Shows plot with the results
 		if plot_result == 'yes':
@@ -1193,13 +1250,13 @@ if __name__ == '__main__':
 				dir_name_spec = dir_name+'/spec_p'
 			create_dir(dir_name_spec)
 
-			results_spec = QTable[]
+			# results_spec = QTable[]
 			#iteration over ew grid
 			for i in range(1, len(ew_grid)):
 				left_lim = ew_grid(i - 1)
 				right_lim = ew_grid(i)
 				#call to dn/dz function for width
-				# grid_pares_spec, grid_hits_spec, red_path_spec, gc_spec, results = dndz_vs_x(dd, dir_name_spec, pares_spec, hits_spec, grt, b_0, b, n, z_min, z_max)
+				# grid_pares_spec, grid_hits_spec, red_path_spec, gc_spec, results = dndz_vs_x(dd, dir_name_spec, pares_spec, hits_spec, grt, n, z_min, z_max)
 				#add results to dn/(dzdw) vs ew table
 				row = results[0]
 				results_spec.add_row(row)
@@ -1212,12 +1269,12 @@ if __name__ == '__main__':
 			dir_name_phot = dir_name+'/phot'	
 			create_dir(dir_name_phot)
 
-			results_phot = QTable[]
+			# results_phot = QTable[]
 			for i in range(1, len(ew_grid)):
 				left_lim = ew_grid(i - 1)
 				right_lim = ew_grid(i)
 				#call to dn/dz function for width
-				# grid_pares_phot, grid_hits_phot, red_path_phot, gc_phot, results = dndz_vs_x(dd, dir_name_phot, pares_phot, hits_phot, grt, b_0, b, n, z_min, z_max)
+				# grid_pares_phot, grid_hits_phot, red_path_phot, gc_phot, results = dndz_vs_x(dd, dir_name_phot, pares_phot, hits_phot, grt, n, z_min, z_max)
 				#add results to dn/(dzdw) vs ew table
 				pass	
 		#show results
