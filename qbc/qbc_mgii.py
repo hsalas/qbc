@@ -967,8 +967,8 @@ def dndz_vs_x(x, dir_name, pares, hits, tipo, begin, end, n, z_min, z_max):
 			    			snp: Same number of pairs per bin.
 			    			neil: Grid used in neil's code .
 			    			one: One single bin.
-		begin:	Starting point of the grid (float). Should be equal to min_ip  value.
-		end:	Ending point of the grid (float). Shoul be equal to max_ip value
+		begin:	Starting point of the grid (float). 
+		end:	Ending point of the grid (float). 
 		n:	Number of point in the grid (int).
 		z_min:		Minimum redshift redshift where detection is possible (float). Given by survey limits
 		z_max:		Maximum redshift redshift where detection is possible (float). Given by survey limits
@@ -1056,21 +1056,27 @@ if __name__ == '__main__':
 	# run for dn/dz vs b, dn/dz vs ew and dn/dz vs z
 	if m == 1 or m ==2 or m==3:
 
-		# define directory name
+		# define directory name and assign  some variable values
 		if m ==1:#dn/dz vs b
 			dir_name = '../saved_files/dndz_v_b/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
 			x_value = dd
+			first = min_IP
+			last = max_IP
 
 		elif m == 2:#dn/dz vs ew
 			dir_name = '../saved_files/dndz_v_ew/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
-			x_value = 'ew' 
+			x_value = 'ew'
+			first = min_EW
+			last = max_EW 
 
 		elif m == 3:#dn/dz vs z
 			dir_name = '../saved_files/dndz_v_z/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
 			x_value = 'z' 
+			first = min_z
+			last = max_z
 
 		#run for spectroscopic clusters
 		if z_cl_type == 'spec' or z_cl_type == 'all':
@@ -1081,7 +1087,7 @@ if __name__ == '__main__':
 				dir_name_spec = dir_name+'/spec_p'
 			create_dir(dir_name_spec)
 			#call to the function that makes the calculations
-			grid_pares_spec, grid_hits_spec, red_path_spec, gc_spec, results_spec = dndz_vs_x(x_value, dir_name_spec, pares_spec, hits_spec, grt, min_IP, max_IP, n, z_min, z_max)
+			grid_pares_spec, grid_hits_spec, red_path_spec, gc_spec, results_spec = dndz_vs_x(x_value, dir_name_spec, pares_spec, hits_spec, grt, first, last, n, z_min, z_max)
 
 		#run for photometric clusters
 		if z_cl_type == 'phot' or z_cl_type=='all':
@@ -1090,7 +1096,7 @@ if __name__ == '__main__':
 			dir_name_phot = dir_name+'/phot'	
 			create_dir(dir_name_phot)
 			#call to the functions that makes the calculations
-			grid_pares_phot, grid_hits_phot, red_path_phot, gc_phot, results_phot = dndz_vs_x(x_value, dir_name_phot, pares_phot, hits_phot, grt, min_IP, max_IP, n, z_min, z_max)
+			grid_pares_phot, grid_hits_phot, red_path_phot, gc_phot, results_phot = dndz_vs_x(x_value, dir_name_phot, pares_phot, hits_phot, grt, first, last, n, z_min, z_max)
 
 		#Shows plot with the results
 		if plot_result == 'yes':
