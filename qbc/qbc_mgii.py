@@ -1068,8 +1068,8 @@ if __name__ == '__main__':
 			dir_name = '../saved_files/dndz_v_ew/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
 			create_dir(dir_name)
 			x_value = 'ew'
-			first = min_EW
-			last = max_EW 
+			first = min_EW.value
+			last = max_EW.value 
 
 		elif m == 3:#dn/dz vs z
 			dir_name = '../saved_files/dndz_v_z/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
