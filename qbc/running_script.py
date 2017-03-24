@@ -7,8 +7,8 @@ that will be stored in corresponding directories"""
 # define the cuts
 # cl_types = ['spec', 'phot']
 cl_types = ['spec']
-# sn_types = {'local', 'global'}
-sn = 'local'
+# sn_types = ['local', 'global']
+sn_types = ['local']
 #grid_types = ['log', 'lin', 'snp']
 grid_types = [ 'log']
 # dist_types = ['pro', 'com', 'r200']
@@ -44,23 +44,23 @@ for lim in lims:
 						for iplim in iplims:
 							for dist in dist_types:
 								for grid in grid_types:
-									for sn in sn_types
+									for sn in sn_types:
 										for cl_type in cl_types:
 											s_sn_str = '-s_{:.1f}_{}'.format(s, sn)
 											grid_n_str =  '{}_n{:.1f}'.format(grid, n)
-											ip_str = '-ip_{:1f}_to_{:1f}'.format(min_IP, max_IP)
-											ew_str = '-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)
-											mass_str = '-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))
-											z_str = '-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)
+											ip_str = '-ip_{}_{:.1f}_to_{:.1f}'.format(dist, iplim[0], iplim[1])
+											ew_str = '-rew_{:.1f}_to_{:.1f}'.format(ewlim[0], ewlim[1])
+											mass_str = '-mass_10e{}_to_10e{}'.format(masslim[0], masslim[1])
+											z_str = '-z_{:.2f}_to_{:.2f}'.format(zlim[0], zlim[1])
 											lim_str = 'lim_{}'.format(lims_dict[lim])
 											ist_str = 'dist-{}'.format(dist)
-											dir_name = '../saved_files/dndz_v_b/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_str+dist_str
-											command_str = '-minew {} -maxew {} -minmass {} -maxmass {} -s {} -d {} -gr {} -zct {} -b {} -n {} -m {} -s2n {} -ls {}'.format(ewlim[0], ewlim[1], masslim[0], masslim[1], s, d, grid, cl_type, b, n, m, sn, lim)
-											print(dist_str)
+											dir_name = grid_n_str+'-'+lim_str+mass_str+ew_str+z_str+ip_str+s_sn_str
+											command_str = '-minew {} -maxew {} -minmass {} -maxmass {} -minz {} -maxz {} -minip {} -maxip {} -d {} -s {} -gr {} -n {} -zct {}  -m {} -s2n {} -ls {}'.format(ewlim[0], ewlim[1], masslim[0], masslim[1], zlim[0], zlim[1], iplim[0], iplim[1], dist, s, grid, n, cl_type, m, sn, lim)
+											print(dir_name)
 											counter += 1
 											# run QbC
-											f.write(dir_str) 
+											f.write(dir_name) 
 											print(' Running QbC...')
-											os.system("python QbC_mgii_v7.py {}".format(command_str))							
+											os.system("python qbc_mgii.py {}".format(command_str))							
 f.close()
 print("We have written {} results".format(counter))

@@ -29,7 +29,7 @@ parser.add_argument('-maxew', '--max_EW', type=float, default=2.0, dest='maxEW',
 parser.add_argument('-minmass', '--min_mass', type=float, default=13.6, dest='minmass', metavar='MINM', help='Float. Minimim cluster mass to be considered in units of log10(Msun). Default value 13.6',action='store')
 parser.add_argument('-maxmass', '--max_mass', type=float, default=20.0, dest='maxmass', metavar='MAXM', help='Float. Maximum cluster mass to be considered in units of log10(Msun). Default value 20.0',action='store')
 parser.add_argument('-minz', '--min_z', type=float, default=0, dest='minz', metavar='MINZ', help='Float. Minimum redshift to be considered. Default value 0.',action='store')
-parser.add_argument('-max', '--max_z', type=float, default=10, dest='maxz', metavar='MAXZ', help='Float. Maximum redshift to be considered. Default value 10.',action='store')
+parser.add_argument('-maxz', '--max_z', type=float, default=10, dest='maxz', metavar='MAXZ', help='Float. Maximum redshift to be considered. Default value 10.',action='store')
 parser.add_argument('-minip', '--min_IP', type=float, default=0.1, dest='minIP', metavar='MINIP', help='Float. Minimum impact parameter to be considered. Default value 0.1',action='store')
 parser.add_argument('-maxip', '--max_IP', type=float, default=40, dest='maxIP', metavar='MAXIP', help='Float. Maximum impact parameter to be considered. Default value 40.',action='store')
 parser.add_argument('-pr', '--plot_result', type=str, default='no', dest='plotresult', metavar='PR', help='''str. Whether to display a plot of the reuslts. Default 'no'.''', action='store')
@@ -894,7 +894,7 @@ def load_master_tables(z_cl_type, mode):
 		master_table_pares_xxxx master table containnig the pairs. xxxx=z_cl_type used 
 		master_table_hits_xxxx master table containg the hits. xxxx=z_cl_type used
 	'''
-		
+	print('Loading master tables')	
 	if z_cl_type == 'phot':
 
 		if  mode == 'test':
@@ -979,7 +979,8 @@ def dndz_vs_x(x, dir_name, pares, hits, tipo, begin, end, n, z_min, z_max):
 		results:
 	'''
 	#create bins
-	n_bins = np.log2(len(hits)) #+ 1.
+	print('Obtaining dn dz')
+	n_bins = np.log2(len(hits)) + 1.
 	if  tipo == 'snh':
 		edges = bins_edges(hits, tipo, x, begin, end, n_bins, n)
 	else:
