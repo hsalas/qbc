@@ -75,10 +75,8 @@ delta_v = 500.0*(u.km/u.s)
 l_0 = 2796.3542699 # rest wavelength mgii in AA
 lmin_sdss = 3800.0 
 lmax_sdss =	9200.0
-# z_min = lmin_sdss/l_0-1.0
-z_min = 0.359
+z_min = lmin_sdss/l_0-1.0
 z_max = lmax_sdss/l_0-1.0
-# z_max = 0.6
 
 dataset = 'mge10e'+str(min_mass)
 min_mass = (10**min_mass)*u.Msun
@@ -991,22 +989,22 @@ def dndz_vs_x(x, dir_name, pares, hits, tipo, begin, end, n, z_min, z_max):
 		grid_pares = grilla(pares, edges, 'ew_pares')
 	else:
 		grid_pares = grilla(pares, edges, x)
-	with open(dir_name + '/grid_pares_'+str(x)+'.pickle', 'wb') as f:
+	with open(dir_name + '/grid_pares'+'.pickle', 'wb') as f:
 		pickle.dump(grid_pares, f, protocol=2)
 
 	grid_hits = grilla(hits, edges, x)
-	with open(dir_name + '/grid_hits_'+str(x)+'.pickle', 'wb') as f:
+	with open(dir_name + '/grid_hits'+'.pickle', 'wb') as f:
 		pickle.dump(grid_hits, f, protocol=2)
 
 	red_path, gc = redshift_path(grid_pares, z_min, z_max)			
-	with open(dir_name + '/dz_'+str(x)+'.pickle', 'wb') as f:
+	with open(dir_name + '/dz'+'.pickle', 'wb') as f:
 		pickle.dump(red_path, f, protocol=2)
-	with open(dir_name+ '/gc_'+str(x)+'.pickle', 'wb') as f:
+	with open(dir_name+ '/gc'+'.pickle', 'wb') as f:
 		pickle.dump(gc, f, protocol=2)
 
 	# import pdb; pdb.set_trace()
 	results = results_table(x, grid_hits, red_path, grid_pares)
-	with open(dir_name + '/results_'+str(x)+'.pickle', 'wb') as f:
+	with open(dir_name + '/results'+'.pickle', 'wb') as f:
 		pickle.dump(results, f, protocol=2)
 
 	return(grid_pares, grid_hits, red_path, gc, results)
@@ -1017,16 +1015,16 @@ if __name__ == '__main__':
 	limit_by = names(ls)
 	dist_type = names(dd)
 
-	grid_str = grt+'_n'+str(n)
+	grid_str =  '{}_n{:.1f}'.format(grt, n)
 	mass_str = '-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))
 	ew_str = '-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)
 	z_str = '-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)
-	ip_str = '-ip_{:1f}_to_{:1f}'.format(min_IP, max_IP)
+	ip_str = '-ip_{}_{:1f}_to_{:1f}'.format(dd, min_IP, max_IP)
 
 	if sn == 'global':
-		sn_tag = '-s_{:.1f}'.format(s)
+		sn_str = '-s_{:.1f}_global'.format(s)
 	elif sn == 'local':
-		sn_tag = '-s_{}_local'.format(s)
+		sn_str = '-s_{:.1f}_local'.format(s)
 
 	# read the catalogs
 	cluster, mgii, mgii_search = load_catalogs(ls)
@@ -1058,21 +1056,21 @@ if __name__ == '__main__':
 
 		# define directory name and assign  some variable values
 		if m ==1:#dn/dz vs b
-			dir_name = '../saved_files/dndz_v_b/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
+			dir_name = '../saved_files/dndz_v_b/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_str
 			create_dir(dir_name)
 			x_value = dd
 			first = min_IP
 			last = max_IP
 
 		elif m == 2:#dn/dz vs ew
-			dir_name = '../saved_files/dndz_v_ew/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
+			dir_name = '../saved_files/dndz_v_ew/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_str
 			create_dir(dir_name)
 			x_value = 'ew'
 			first = min_EW.value
 			last = max_EW.value 
 
 		elif m == 3:#dn/dz vs z
-			dir_name = '../saved_files/dndz_v_z/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_tag
+			dir_name = '../saved_files/dndz_v_z/'+grid_str+'-'+limit_by+mass_str+ew_str+z_str+ip_str+sn_str
 			create_dir(dir_name)
 			x_value = 'z' 
 			first = min_z
@@ -1113,7 +1111,7 @@ if __name__ == '__main__':
 				print('\nResults spec:\n')
 				print(results_spec)
 				plot_results_show(fig, x_value, results_spec, color='red')
-				legend_spec = 'mass 1e{} Msun to 1e{} Msun, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
+				legend_spec = 'mass 10e{} Msun to 10e{} Msun, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
 				legend.append(legend_spec)
 			
 			#plot for photpmetric results
@@ -1121,7 +1119,7 @@ if __name__ == '__main__':
 				print('\nResults phot:\n')
 				print(results_phot)
 				plot_results_show(fig, x_value, results_phot, color='blue')
-				legend_phot = 'mass 1e{} Msun to 1e{} Msun, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
+				legend_phot = 'mass 10e{} Msun to 10e{} Msun, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
 				llegend.append(legend_phot)
 			
 			#add legend and display plot
@@ -1162,7 +1160,7 @@ if __name__ == '__main__':
 	#Run fo dn/(dz/dw) vs ew (In development)
 	elif  m==4:
 		#Create directory
-		dir_name = '../saved_files/dndzdw_v_ew/'+grid+'-'+limit_by+'-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))+'-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)+'-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)+'-'+sn_tag
+		dir_name = '../saved_files/dndzdw_v_ew/'+grid+'-'+limit_by+'-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))+'-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)+'-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)+'-'+sn_str
 		create_dir(dir_name)
 		#create ew grid
 		# ew_grid =
