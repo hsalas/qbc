@@ -11,7 +11,7 @@ from PyQt4.QtGui import *
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from astropy.table import Table, QTable, Column
-from plots_v2 import plot_dNdz, plot_dNdz_vs_x
+from plots import plot_dNdz_vs_x
 import matplotlib.pyplot as plt
 import random
 import pickle
@@ -38,11 +38,12 @@ n = [0.5, 1.0, 2.0]
 sig = [0.0, 1.0, 2.0, 3.0]
 ewlims = [(0.6, 2.0), (0.6, 1.0), (1.0, 1.5), (1.5, 2.0) ]
 masslims = [ (13.6, 16.0), (13.6, 14.0), (14.0, 14.2), (14.20, 16.0)]
-zlims = [('0.36','0.44'), ('0.44','0.52'), ('0.52','0.60')]
+zlims = [(0.36,0.44), (0.44,0.52), (0.52,0.60)]
+iplims = [(0.1,12), (0.1,40)]
 distances = ['com', 'pro', 'r200']
 grids = ['log', 'snp', 'linear']
 cl_types = ['spec','phot']
-signal2noise = ['local', '']
+signal2noise = ['local', 'global']
 limit_by = ['lya', 'civ']
 color_counter = 0
 plots = []
@@ -216,7 +217,7 @@ class SpinBox(QWidget):
 
 		#create widgets
 		self.title_label = QLabel(label)
-		self.space_label =QLabel('')
+		# self.space_label =QLabel('')
 		self.spinbox = QSpinBox()
 		self.spinbox.setRange(min_value, max_value)
 		self.spinbox.setSuffix(suffix)
@@ -231,7 +232,7 @@ class SpinBox(QWidget):
 
 		#add widgets to layout
 		self.main_layout.addWidget(self.title_label)
-		self.main_layout.addWidget(self.space_label)
+		# self.main_layout.addWidget(self.space_label)
 		self.main_layout.addWidget(self.spinbox)
 
 		#set aligment for the layout
@@ -245,37 +246,64 @@ class SpinBox(QWidget):
 		return int(self.spinbox.value())
 
 class ListWidget(QWidget):
-	"""Creates a list widget from a labela, a list of options pairs (a, b), and a units"""
-	def __init__(self, label, options_list, units):
+	"""Creates a list widget from a label and a list"""
+	def __init__(self, options_list):
 		super(ListWidget, self).__init__()
 
 		#create widgets
-		self.title_label = QLabel(label+' '+units)
 		self.listwidget = QListWidget()
 
 		#add options to the list widget
 		for each in options_list:
-			s_min = '{}'.format(each[0])
-			s_max = '{}'.format(each[1])
-			s = s_min+' to '+s_max#+' '+units
-			self.item =QListWidgetItem(s)
+			self.item =QListWidgetItem(each)
 			self.listwidget.addItem(self.item)
 
 		#select default value
 		self.listwidget.setCurrentRow(0)
 
 		#adjust size and aligment for widgets
-		self.title_label.setFixedHeight(35)
-		self.title_label.setAlignment(Qt.AlignHCenter)
-		self.title_label.setAlignment(Qt.AlignTop)
-		self.listwidget.setFixedSize(self.listwidget.sizeHintForColumn(0) + 2 * self.listwidget.frameWidth(), self.listwidget.sizeHintForRow(0) * self.listwidget.count() + 2 * self.listwidget.frameWidth())
+		self.listwidget.setFlow(0) #horizontal left to to rigth
+		
+		#create layout for the whole widget
+		self.main_layout = QVBoxLayout()
+
+		#add widgets to the layout
+		self.main_layout.addWidget(self.listwidget)
+
+		#set aligment for the layout
+		self.main_layout.setAlignment(Qt.AlignHCenter)
+
+		#set the layout for this widget
+		self.setLayout(self.main_layout)
+
+	#metod to find out selected option
+	def selected(self):
+		return self.listwidget.currentRow() + 1, self.listwidget.currentItem().text()
+
+class DropMenu(QWidget):
+	"""This class creates a drop down menu from a label and a list of items """
+	
+	def __init__(self, label, item_list):
+		super(DropMenu, self).__init__()
+	
+		#create widgets
+		self.title_label = QLabel(label)
+		self.comboBox = QComboBox()
+
+		#add items to the menu widget
+		for each in item_list:
+			s_min = '{}'.format(each[0])
+			s_max = '{}'.format(each[1])
+			s = s_min+' to '+s_max#+' '+units
+			self.comboBox.addItem(s)
+		#select default value
 		
 		#create layout for the whole widget
 		self.main_layout = QVBoxLayout()
 
 		#add widgets to the layout
 		self.main_layout.addWidget(self.title_label)
-		self.main_layout.addWidget(self.listwidget)
+		self.main_layout.addWidget(self.comboBox)
 
 		#set aligment for the layout
 		self.main_layout.setAlignment(Qt.AlignTop)
@@ -285,8 +313,9 @@ class ListWidget(QWidget):
 
 	#metod to find out selected option
 	def selected(self):
-		return self.listwidget.currentRow(), self.listwidget.currentItem().text()
-		
+		return self.comboBox.currentIndex(), self.comboBox.currentText()
+
+
 class PlotView(QGraphicsView):
 	"""this class provides a graphics view that ha the resources fo displaying crop status visually"""
 	
@@ -334,24 +363,28 @@ class PlotWindow(QMainWindow):
 
 	def create_select_plot_layout(self):
 		#this is the initial layout of the window - to select the plot parameter
+		self.menu_height = 65
 		self.height_select_area = 120
-		self.width_select_area = 200
+		self.width_select_area = 180
 		self.field_value = 0.3
 		self.cleared = 'no'
 		self.distance_default_value = 0 
+		self.m_default_index = 1
 
-		#radio buttons for impact parameter, distance, grid, cluster type, limit
-		self.impact_parameter_buttons =RadioButtonWidget('Impact Parameter', '', b)
-		self.distance_buttons = RadioButtonWidget('Distance Units', '', ['Mpc Comoving', 'Mpc Proper', 'R 200'])
+		#widget for dndz v x
+		self.dndz_v_x = ListWidget(['|dn/dz vs b|', '|dn/dz vs ew|', '|dn/dz vs z|'])
+		self.dndz_v_x.setFixedSize(350, 40)
+
+		#radio buttons for impact parameter units, distance, grid, cluster type, limit
+		self.distance_buttons = RadioButtonWidget('Impact Parameter Units', '', ['Mpc Comoving', 'Mpc Proper', 'R 200'])
 		self.cluster_type_buttons = RadioButtonWidget('Cluster Z Type', '', ['Spectroscopic','Photometric'])
 		self.grid_buttons = RadioButtonWidget('Grid', '', ['Log', 'SNP', 'Linear'])
 		self.signal2noise_buttons = RadioButtonWidget('S2N', '', ['Local', 'Global'])
-		self.limit_by_buttons = RadioButtonWidget('Limit by', '', ['Lyman alpha', 'CIV'])
+		self.limit_by_buttons = RadioButtonWidget('Limit by', '', [u'Lyman \u03b1', 'CIV'])
 		self.nbins_widget = RadioButtonWidget('#bins', '', ['x0.5', 'x1.0', 'x2.0'])
-		self.impact_parameter_buttons.setFixedSize(self.width_select_area, self.height_select_area)
-		self.distance_buttons.setFixedSize(self.width_select_area, self.height_select_area + 15)
-		self.grid_buttons.setFixedSize(self.width_select_area / 2.0, self.height_select_area + 15)
-		self.nbins_widget.setFixedSize(self.width_select_area /2.0, self.height_select_area + 15)
+		self.distance_buttons.setFixedHeight(self.height_select_area + 15)
+		self.grid_buttons.setFixedSize(self.width_select_area, self.height_select_area + 20)
+		self.nbins_widget.setFixedSize(self.width_select_area, self.height_select_area + 20)
 		self.cluster_type_buttons.setFixedSize(self.width_select_area, self.height_select_area)
 		self.signal2noise_buttons.setFixedSize(self.width_select_area, self.height_select_area)
 		self.limit_by_buttons.setFixedSize(self.width_select_area, self.height_select_area)
@@ -359,13 +392,17 @@ class PlotWindow(QMainWindow):
 
 		#signifficance spinbox, n spinboc
 		self.significance_spinbox = SpinBox('Significance', 0, 3)
-		self.significance_spinbox.setFixedSize(self.width_select_area, self.height_select_area)
+		self.significance_spinbox.setFixedSize(self.width_select_area, self.height_select_area -10)
 
-		#list widgets for Mass and EW
-		self.mass_listwiget = ListWidget('Mass', masslims, '[log(Msun)]')
-		self.ew_listwidget = ListWidget('EW', ewlims, '[AA]')
-		self.mass_listwiget.setFixedSize(self.width_select_area, self.height_select_area)
-		self.ew_listwidget.setFixedSize(self.width_select_area, self.height_select_area)
+		#menu widgets for Mass, EW, IP, Z 
+		self.mass_menu = DropMenu(u'Mass [log(M<sub>\u2609</sub>)]', masslims)
+		self.ew_menu = DropMenu('Equivalent Width [AA]', ewlims)
+		self.ip_menu = DropMenu('Impact Parameter', iplims)
+		self.z_menu = DropMenu('Z', zlims)
+		self.mass_menu.setFixedHeight(self.menu_height)
+		self.ew_menu.setFixedHeight(self.menu_height)
+		self.z_menu.setFixedHeight(self.menu_height)
+		self.ip_menu.setFixedHeight(self.menu_height)
 
 		#create field input box
 		self.field_widget = LineEdit('Field Value', 'Insert field value')
@@ -383,214 +420,39 @@ class PlotWindow(QMainWindow):
 		# self.plot_view.sizeHint=500		
 
 		#create layouts
-		self.grid_layout = QHBoxLayout()
+		self.options_panel_layout = QVBoxLayout()
 		self.options_layout = QGridLayout()
+		self.right_layout = QVBoxLayout()
+		self.left_layout = QVBoxLayout()
 		self.graphic_layout = QHBoxLayout()
-		self.buttons_layout = QVBoxLayout()
 
 		#add widgets to grid layput
-		self.grid_layout.addWidget(self.grid_buttons)
-		self.grid_layout.addWidget(self.nbins_widget)
+		self.right_layout.addWidget(self.cluster_type_buttons)
+		self.right_layout.addWidget(self.limit_by_buttons)
+		self.right_layout.addWidget(self.grid_buttons)
+		self.right_layout.addWidget(self.nbins_widget)
+		self.right_layout.addWidget(self.significance_spinbox)
 
+		#add widgets to menu layout
+		self.left_layout.addWidget(self.z_menu)
+		self.left_layout.addWidget(self.mass_menu)
+		self.left_layout.addWidget(self.ew_menu)
+		self.left_layout.addWidget(self.ip_menu)
+		self.left_layout.addWidget(self.distance_buttons)
+		self.left_layout.addWidget(self.field_widget)
+		
 		#add widgets/layput to the options layout
-		self.options_layout.addWidget(self.impact_parameter_buttons, 0, 0)
-		self.options_layout.addWidget(self.cluster_type_buttons, 0,1)
-		self.options_layout.addWidget(self.signal2noise_buttons,1, 0 )
-		self.options_layout.addWidget(self.limit_by_buttons, 1, 1)
-		self.options_layout.addLayout(self.grid_layout, 2, 0)
-		self.options_layout.addWidget(self.distance_buttons, 2, 1)
-		self.options_layout.addWidget(self.mass_listwiget, 3, 0)
-		self.options_layout.addWidget(self.ew_listwidget, 3, 1)
-		self.options_layout.addWidget(self.field_widget, 4, 0)
-		self.options_layout.addWidget(self.significance_spinbox, 4, 1)
-		self.options_layout.addWidget(self.plot_button, 5, 0)
-		self.options_layout.addWidget(self.clear_button, 5,1)
+		self.options_layout.addLayout(self.left_layout, 0, 0)
+		self.options_layout.addLayout(self.right_layout, 0, 1)
+		self.options_layout.addWidget(self.plot_button, 1, 0)
+		self.options_layout.addWidget(self.clear_button, 1,1)
+
+		#add widgets/layput to the options panel layout
+		self.options_panel_layout.addWidget(self.dndz_v_x)
+		self.options_panel_layout.addLayout(self.options_layout)
 
 		#add widget/layout to the graphics layout
-		self.graphic_layout.addLayout(self.options_layout)
-		self.graphic_layout.addWidget(self.plot_view)
-
-		#create plot widget and add it to layout
-		self.select_plot_widget = QWidget()
-		self.select_plot_widget.setLayout(self.graphic_layout)
-
-		self.setCentralWidget(self.select_plot_widget)
-
-		#connections
-		self.plot_button.clicked.connect(self.instantiate_plot)
-		self.clear_button.clicked.connect(self.clear_plot)
-
-	def update_plot(self, X, name, color, legend):
-		#update the plot image
-		self.plot_view.make_plot(X, name, color, legend)
-
-	def plot_field(self, field):
-		#plots the field value
-		self.plot_view.plot_field_value(field)
-
-	def clear_plot(self):
-		self.plot_view.clear_plots()
-		self.cleared = 'yes'
-
-	def instantiate_plot(self):
-
-		impact_parameter_value = self.impact_parameter_buttons.selected_button() #get the radio that was selected
-		impact_parameter = b[impact_parameter_value]	
-		grid_value = self.grid_buttons.selected_button()
-		grid = grids[grid_value]	
-		# print('Grid: {}'.format(grid))
-
-		cluster_type_value = self.cluster_type_buttons.selected_button()
-		cl_type = cl_types[cluster_type_value]
-		# print('Cluster  type: {}'.format(cl_type))
-		
-		distance_value = self.distance_buttons.selected_button()
-		distance = distances[distance_value]
-		# print('Distance units: {}'.format(distance))
-		if distance_value != self.distance_default_value:
-			self.clear_plot()
-			self.distance_default_value = distance_value
-
-		signal2noise_value = self.signal2noise_buttons.selected_button()
-		s2n = signal2noise[signal2noise_value]
-
-		significance_value = self.significance_spinbox.value()
-		# print('Significance: {}'.format(significance_value))
-
-		mass_lims_index, mass_lims = self.mass_listwiget.selected()
-		masslim = masslims[mass_lims_index]
-		# print('{}, index: {}'.format(mass_lims, mass_lims_index))
-
-		ew_lims_index, ew_lims = self.ew_listwidget.selected()
-		ewlim = ewlims[ew_lims_index]
-		# print('{}, index: {}'.format(ew_lims, ew_lims_index))
-
-		limit_by_value = self.limit_by_buttons.selected_button()
-		limit = limit_by[limit_by_value]
-
-		nbins_value = self.nbins_widget.selected_button()
-		nbins = n[nbins_value]
-
-		field =self.field_widget.get_number()
-		# print('{:.1f}'.format(field))
-
-		zlim=(0,10)
-
-		grid_str = '{}_b{:.1f}_n{:.1f}'.format(grid, impact_parameter, nbins)
-		alias = 'mass {} to {}, ew {} to {}, s {}, {}, {}'.format(masslim[0], masslim[1], ewlim[0], ewlim[1], significance_value, cl_type, limit)
-		# dir_name = '../saved_files/{}-lim_{}-mass_10e{}_to_10e{}-rew_{}_to_{}-s_{:.1f}_{}/{}/results_{}.pickle'.format(grid_str,limit, masslim[0], masslim[1], ewlim[0], ewlim[1] , significance_value ,s2n, cl_type, distance)
-		dir_name = '../saved_files/dndz_v_b/{}-lim_{}-mass_10e{}_to_10e{}-rew_{}_to_{}-z_{:.2f}_to_{:.2f}-s_{:.1f}_{}/{}/results_{}.pickle'.format(grid_str,limit, masslim[0], masslim[1], ewlim[0], ewlim[1], zlim[0], zlim[1], significance_value ,s2n, cl_type, distance)
-		color_list = xkcd_color_list(banned=['white'])
-		random.shuffle(color_list)
-		# print(dir_name)
-		
-		if os.path.isfile(dir_name):
-			try:
-				with open(dir_name, 'rb') as f:
-					results = pickle.load(f)
-			except UnicodeDecodeError:
-				with open(dir_name, 'rb') as f:
-					results = pickle.load(f, encoding='latin1')
-			plots.append(alias)
-			self.update_plot('b', results, color_list[len(plots) - 1], plots)
-			if len(plots) ==1:
-				self.plot_field(field)
-			elif field != self.field_value:
-				self.plot_field(field)
-				self.field_value = field
-			elif self.cleared == 'yes':
-				self.plot_field(field)
-				self.cleared = 'no' 
-		else:
-			print('{} File not found, make sure QbC_mgii_v6.py was run with this configuration'.format(dir_name))
-			
-
-class PlotWindowZ(QMainWindow):
-	'''this creates a main window to create the plots from QbC_mgii_v6.py using matplotlib'''
-
-	#constructor
-	def __init__(self):
-		super(PlotWindowZ, self).__init__()#call super class constructor
-		self.create_select_plot_layout()
-
-	def create_select_plot_layout(self):
-		#this is the initial layout of the window - to select the plot parameter
-		self.height_select_area = 120
-		self.width_select_area = 200
-		self.field_value = 0.3
-		self.cleared = 'no'
-		self.distance_default_value = 0 
-
-		#radio buttons for impact parameter, distance, grid, cluster type, limit
-		self.impact_parameter_buttons =RadioButtonWidget('Impact Parameter', '', b)
-		self.distance_buttons = RadioButtonWidget('Distance Units', '', ['Mpc Comoving', 'Mpc Proper', 'R 200'])
-		self.cluster_type_buttons = RadioButtonWidget('Cluster Z Type', '', ['Spectroscopic','Photometric'])
-		self.grid_buttons = RadioButtonWidget('Grid', '', ['Log', 'SNP', 'Linear'])
-		self.signal2noise_buttons = RadioButtonWidget('S2N', '', ['Local', 'Global'])
-		self.limit_by_buttons = RadioButtonWidget('Limit by', '', ['Lyman alpha', 'CIV'])
-		self.nbins_widget = RadioButtonWidget('#bins', '', ['x0.5', 'x1.0', 'x2.0'])
-		self.impact_parameter_buttons.setFixedSize(self.width_select_area, self.height_select_area)
-		self.distance_buttons.setFixedSize(self.width_select_area, self.height_select_area + 15)
-		self.grid_buttons.setFixedSize(self.width_select_area / 2.0, self.height_select_area + 15)
-		self.nbins_widget.setFixedSize(self.width_select_area /2.0, self.height_select_area + 15)
-		self.cluster_type_buttons.setFixedSize(self.width_select_area, self.height_select_area)
-		self.signal2noise_buttons.setFixedSize(self.width_select_area, self.height_select_area)
-		self.limit_by_buttons.setFixedSize(self.width_select_area, self.height_select_area)
-		self.nbins_widget.select_default(1)
-
-		#signifficance spinbox, n spinboc
-		self.significance_spinbox = SpinBox('Significance', 0, 3)
-		self.significance_spinbox.setFixedSize(self.width_select_area, self.height_select_area)
-
-		#list widgets for Mass and EW
-		self.mass_listwiget = ListWidget('Mass', masslims, '[log(Msun)]')
-		self.ew_listwidget = ListWidget('EW', ewlims, '[AA]')
-		self.z_listwidget = ListWidget('Z', zlims, '')
-		self.mass_listwiget.setFixedSize(self.width_select_area, self.height_select_area)
-		self.ew_listwidget.setFixedSize(self.width_select_area, self.height_select_area)
-		self.z_listwidget.setFixedSize(self.width_select_area, self.height_select_area)
-
-		#create field input box
-		self.field_widget = LineEdit('Field Value', 'Insert field value')
-		self.field_widget.setFixedSize(self.width_select_area, self.height_select_area)
-		self.field_widget.set_default(self.field_value)
-
-		#Plot and Clear Buttons 
-		self.plot_button = QPushButton('Plot')
-		self.plot_button.setFixedSize(self.width_select_area, 30)
-		self.clear_button = QPushButton('Clear')
-		self.clear_button.setFixedSize(self.width_select_area, 30)
-
-		#create plot from matplotlib
-		self.plot_view = MatplolibPlot()
-		# self.plot_view.sizeHint=500		
-
-		#create layouts
-		self.grid_layout = QHBoxLayout()
-		self.options_layout = QGridLayout()
-		self.graphic_layout = QHBoxLayout()
-		self.buttons_layout = QVBoxLayout()
-
-		#add widgets to grid layput
-		self.grid_layout.addWidget(self.grid_buttons)
-		self.grid_layout.addWidget(self.nbins_widget)
-
-		#add widgets/layput to the options layout
-		self.options_layout.addWidget(self.impact_parameter_buttons, 0, 0)
-		self.options_layout.addWidget(self.cluster_type_buttons, 0,1)
-		self.options_layout.addWidget(self.z_listwidget ,1, 0 )
-		self.options_layout.addWidget(self.limit_by_buttons, 1, 1)
-		self.options_layout.addLayout(self.grid_layout, 2, 0)
-		self.options_layout.addWidget(self.distance_buttons, 2, 1)
-		self.options_layout.addWidget(self.mass_listwiget, 3, 0)
-		self.options_layout.addWidget(self.ew_listwidget, 3, 1)
-		self.options_layout.addWidget(self.field_widget, 4, 0)
-		self.options_layout.addWidget(self.significance_spinbox, 4, 1)
-		self.options_layout.addWidget(self.plot_button, 5, 0)
-		self.options_layout.addWidget(self.clear_button, 5,1)
-
-		#add widget/layout to the graphics layout
-		self.graphic_layout.addLayout(self.options_layout)
+		self.graphic_layout.addLayout(self.options_panel_layout)
 		self.graphic_layout.addWidget(self.plot_view)
 
 		#create plot widget and add it to layout
@@ -617,8 +479,18 @@ class PlotWindowZ(QMainWindow):
 
 	def instantiate_plot(self):
 
-		impact_parameter_value = self.impact_parameter_buttons.selected_button() #get the radio that was selected
-		impact_parameter = b[impact_parameter_value]	
+		m_index, m_value = self.dndz_v_x.selected()
+		if m_index == 1:
+			m_str ='dndz_v_b/'
+		elif m_index == 2:
+			m_str ='dndz_v_ew/'
+		elif m_index == 3:
+			m_str = 'dndz_v_z/'
+		if m_index != self.m_default_index:
+			self.clear_plot()
+			self.m_default_index = m_index
+		# print(m_index)
+
 		grid_value = self.grid_buttons.selected_button()
 		grid = grids[grid_value]	
 		# print('Grid: {}'.format(grid))
@@ -640,13 +512,19 @@ class PlotWindowZ(QMainWindow):
 		significance_value = self.significance_spinbox.value()
 		# print('Significance: {}'.format(significance_value))
 
-		mass_lims_index, mass_lims = self.mass_listwiget.selected()
+		mass_lims_index, mass_lims = self.mass_menu.selected()
 		masslim = masslims[mass_lims_index]
 		# print('{}, index: {}'.format(mass_lims, mass_lims_index))
 
-		ew_lims_index, ew_lims = self.ew_listwidget.selected()
+		ew_lims_index, ew_lims = self.ew_menu.selected()
 		ewlim = ewlims[ew_lims_index]
 		# print('{}, index: {}'.format(ew_lims, ew_lims_index))
+
+		z_lims_index, z_lims = self.z_menu.selected()
+		zlim = zlims[z_lims_index]
+
+		ip_lims_index, ip_lims = self.ip_menu.selected()
+		iplim = iplims[ip_lims_index]
 
 		limit_by_value = self.limit_by_buttons.selected_button()
 		limit = limit_by[limit_by_value]
@@ -654,15 +532,20 @@ class PlotWindowZ(QMainWindow):
 		nbins_value = self.nbins_widget.selected_button()
 		nbins = n[nbins_value]
 
-		zlims_index, z_lims = self.z_listwidget.selected()
-		zlim = zlims[zlims_index]
-
 		field =self.field_widget.get_number()
 		# print('{:.1f}'.format(field))
+	
+		limit_str = '{}'.format(limit)
+		grid_str = '{}_n{:.1f}'.format(grid, nbins)
+		mass_str = '-mass_10e{}_to_10e{}'.format(masslim[0], masslim[1])
+		ew_str = '-rew_{}_to_{}'.format(ewlim[0], ewlim[1])
+		z_str = '-z_{:.2f}_to_{:.2f}'.format(zlim[0], zlim[1])
+		ip_str = '-ip_{:.1f}_to_{:.1f}'.format(iplim[0], iplim[1])
+		sn_str = '-s_{:.1f}_{}'.format(significance_value, s2n)
 
-		grid_str = '{}_b{:.1f}_n{:.1f}'.format(grid, impact_parameter, nbins)
 		alias = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(masslim[0], masslim[1], ewlim[0], ewlim[1], zlim[0], zlim[1], significance_value, cl_type, limit)
-		dir_name = '../saved_files/{}-lim_{}-mass_10e{}_to_10e{}-rew_{}_to_{}-z_{}_to_{}-s_{:.1f}_{}/{}/results_{}.pickle'.format(grid_str,limit, masslim[0], masslim[1], ewlim[0], ewlim[1], zlim[0], zlim[1], significance_value ,s2n, cl_type, distance)
+		
+		dir_name = '../saved_files/'+m_str+grid_str+'-'+limit_str+mass_str+ew_str+z_str+ip_str+sn_str+'/{}/results_{}.pickle'.format(cl_type, distance)
 		color_list = xkcd_color_list(banned=['white'])
 		random.shuffle(color_list)
 		# print(dir_name)
@@ -685,7 +568,8 @@ class PlotWindowZ(QMainWindow):
 				self.plot_field(field)
 				self.cleared = 'no' 
 		else:
-			print('File not found, make sure QbC_mgii_v6.py was run with this configuration')
+			print(dir_name)
+			print('File not found, make sure qbc_mgii.py was run for this configuration')
 
 
 class MainWindow(QMainWindow):
@@ -707,15 +591,11 @@ class MainWindow(QMainWindow):
 		self.tab1 = PlotWindow()
 		self.tab2 = PlotWindow()
 		self.tab3 = PlotWindow()
-		self.tab4 = PlotWindow()
-		self.tab5 = PlotWindowZ()
 		
 		#add tabs
 		self.tabs.addTab(self.tab1, 'Plot 1')
 		self.tabs.addTab(self.tab2, 'Plot 2')
 		self.tabs.addTab(self.tab3, 'Plot 3')
-		self.tabs.addTab(self.tab4, 'Plot 4')
-		self.tabs.addTab(self.tab5, 'Plot z')
 
 		self.setCentralWidget(self.tabs)
 
@@ -726,8 +606,6 @@ def main():
 
 	viewer = QApplication(sys.argv)#create new application
 	viewer_window = MainWindow()
-	# viewer_window.show() #makes instnce visible
-	# viewer_window.raise_() #raise instance to top of window stack
 	viewer.exec_()#monitor application for events
 
 if __name__ == '__main__':
