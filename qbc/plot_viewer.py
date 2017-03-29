@@ -1,4 +1,6 @@
-'''Creates GUI for ploting the results of QbC_mgii_v6
+'''Creates GUI for ploting the results of qbc_mgii.py
+
+Author: Hector Salas <hsalas@das.uchile.cl>'
 '''
 import sys
 import os
@@ -15,11 +17,6 @@ from plots import plot_dNdz_vs_x
 import matplotlib.pyplot as plt
 import random
 import pickle
-
-# import resources
-# import resources2
-# import resources_local_b12
-# import resources_local_b40
 
 # matplotlib style
 plt.rcParams['figure.figsize'] = [4.0, 3.0]
@@ -315,7 +312,6 @@ class DropMenu(QWidget):
 	def selected(self):
 		return self.comboBox.currentIndex(), self.comboBox.currentText()
 
-
 class PlotView(QGraphicsView):
 	"""this class provides a graphics view that ha the resources fo displaying crop status visually"""
 	
@@ -364,7 +360,7 @@ class PlotWindow(QMainWindow):
 	def create_select_plot_layout(self):
 		#this is the initial layout of the window - to select the plot parameter
 		self.menu_height = 65
-		self.height_select_area = 120
+		self.height_select_area = 110
 		self.width_select_area = 180
 		self.field_value = 0.3
 		self.cleared = 'no'
@@ -392,7 +388,7 @@ class PlotWindow(QMainWindow):
 
 		#signifficance spinbox, n spinboc
 		self.significance_spinbox = SpinBox('Significance', 0, 3)
-		self.significance_spinbox.setFixedSize(self.width_select_area, self.height_select_area -10)
+		self.significance_spinbox.setFixedHeight(self.menu_height)
 
 		#menu widgets for Mass, EW, IP, Z 
 		self.mass_menu = DropMenu(u'Mass [log(M<sub>\u2609</sub>)]', masslims)
@@ -431,7 +427,7 @@ class PlotWindow(QMainWindow):
 		self.right_layout.addWidget(self.limit_by_buttons)
 		self.right_layout.addWidget(self.grid_buttons)
 		self.right_layout.addWidget(self.nbins_widget)
-		self.right_layout.addWidget(self.significance_spinbox)
+		self.right_layout.addWidget(self.signal2noise_buttons)
 
 		#add widgets to menu layout
 		self.left_layout.addWidget(self.z_menu)
@@ -440,6 +436,7 @@ class PlotWindow(QMainWindow):
 		self.left_layout.addWidget(self.ip_menu)
 		self.left_layout.addWidget(self.distance_buttons)
 		self.left_layout.addWidget(self.field_widget)
+		self.left_layout.addWidget(self.significance_spinbox)
 		
 		#add widgets/layput to the options layout
 		self.options_layout.addLayout(self.left_layout, 0, 0)
