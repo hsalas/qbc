@@ -515,7 +515,7 @@ def grilla(tabla, grid, name):
 	'''
 	grid_result = {}
 	tag = names(name) 
-	if tag == 'sep_200':
+	if tag == 'sep_200' or tag == 'z_cluster':
 		for i in range(len(grid)-1):
 			aux = tabla.copy()
 			cond = aux[tag] < grid[(-1*i)-1]
@@ -539,7 +539,7 @@ def grilla(tabla, grid, name):
 			cond = aux[tag] >= grid[(-1*i)-2]*u.AA
 			aux = aux[cond]
 			grid_result[grid[(-1*i) - 1]*u.AA] = aux
-	
+
 	else:
 		for i in range(len(grid)-1):
 			aux = tabla.copy()
