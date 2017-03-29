@@ -367,7 +367,7 @@ class PlotWindow(QMainWindow):
 		self.field_value = 0.3
 		self.cleared = 'no'
 		self.distance_default_value = 0 
-		self.m_default_index = 1
+		self.x_default_index = 1
 
 		#widget for dndz v x
 		self.dndz_v_x = ListWidget(['|dn/dz vs b|', '|dn/dz vs ew|', '|dn/dz vs z|'])
@@ -464,43 +464,32 @@ class PlotWindow(QMainWindow):
 		self.plot_button.clicked.connect(self.instantiate_plot)
 		self.clear_button.clicked.connect(self.clear_plot)
 
-	def update_plot(self, name, color, legend):
+	def update_plot(self, X, name, color, legend):
 		#update the plot image
-		self.plot_view.make_plot(name, color, legend)
+		self.plot_view.make_plot(X, name, color, legend)
 
 	def plot_field(self, field):
 		#plots the field value
 		self.plot_view.plot_field_value(field)
 
 	def clear_plot(self):
+		#clears the current plot
 		self.plot_view.clear_plots()
 		self.cleared = 'yes'
 
 	def instantiate_plot(self):
 
-		m_index, m_value = self.dndz_v_x.selected()
-		if m_index == 1:
-			m_str ='dndz_v_b/'
-		elif m_index == 2:
-			m_str ='dndz_v_ew/'
-		elif m_index == 3:
-			m_str = 'dndz_v_z/'
-		if m_index != self.m_default_index:
-			self.clear_plot()
-			self.m_default_index = m_index
-		# print(m_index)
+		#retrive Values from interface
 
 		grid_value = self.grid_buttons.selected_button()
 		grid = grids[grid_value]	
-		# print('Grid: {}'.format(grid))
-
+		
 		cluster_type_value = self.cluster_type_buttons.selected_button()
 		cl_type = cl_types[cluster_type_value]
-		# print('Cluster  type: {}'.format(cl_type))
 		
 		distance_value = self.distance_buttons.selected_button()
 		distance = distances[distance_value]
-		# print('Distance units: {}'.format(distance))
+		
 		if distance_value != self.distance_default_value:
 			self.clear_plot()
 			self.distance_default_value = distance_value
@@ -509,16 +498,13 @@ class PlotWindow(QMainWindow):
 		s2n = signal2noise[signal2noise_value]
 
 		significance_value = self.significance_spinbox.value()
-		# print('Significance: {}'.format(significance_value))
-
+		
 		mass_lims_index, mass_lims = self.mass_menu.selected()
 		masslim = masslims[mass_lims_index]
-		# print('{}, index: {}'.format(mass_lims, mass_lims_index))
-
+		
 		ew_lims_index, ew_lims = self.ew_menu.selected()
 		ewlim = ewlims[ew_lims_index]
-		# print('{}, index: {}'.format(ew_lims, ew_lims_index))
-
+		
 		z_lims_index, z_lims = self.z_menu.selected()
 		zlim = zlims[z_lims_index]
 
@@ -532,19 +518,33 @@ class PlotWindow(QMainWindow):
 		nbins = n[nbins_value]
 
 		field =self.field_widget.get_number()
-		# print('{:.1f}'.format(field))
-	
-		limit_str = '{}'.format(limit)
+		
+		x_index, x_value = self.dndz_v_x.selected()
+		if x_index == 1:
+			x_str ='dndz_v_b/'
+			x = 'b'
+		elif x_index == 2:
+			x_str = 'dndz_v_ew/'
+			x = 'ew'
+		elif x_index == 3:
+			x_str = 'dndz_v_z/'
+			x = 'z'
+
+		if x_index != self.x_default_index:
+			self.clear_plot()
+			self.x_default_index = x_index
+		
+		limit_str = '-lim_{}'.format(limit)
 		grid_str = '{}_n{:.1f}'.format(grid, nbins)
 		mass_str = '-mass_10e{}_to_10e{}'.format(masslim[0], masslim[1])
 		ew_str = '-rew_{}_to_{}'.format(ewlim[0], ewlim[1])
 		z_str = '-z_{:.2f}_to_{:.2f}'.format(zlim[0], zlim[1])
-		ip_str = '-ip_{:.1f}_to_{:.1f}'.format(iplim[0], iplim[1])
+		ip_str = '-ip_{}_{:.1f}_to_{:.1f}'.format(distance, iplim[0], iplim[1])
 		sn_str = '-s_{:.1f}_{}'.format(significance_value, s2n)
 
 		alias = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(masslim[0], masslim[1], ewlim[0], ewlim[1], zlim[0], zlim[1], significance_value, cl_type, limit)
 		
-		dir_name = '../saved_files/'+m_str+grid_str+'-'+limit_str+mass_str+ew_str+z_str+ip_str+sn_str+'/{}/results_{}.pickle'.format(cl_type, distance)
+		dir_name = '../saved_files/'+x_str+grid_str+limit_str+mass_str+ew_str+z_str+ip_str+sn_str+'/{}/results.pickle'.format(cl_type)
 		color_list = xkcd_color_list(banned=['white'])
 		random.shuffle(color_list)
 		# print(dir_name)
@@ -557,7 +557,7 @@ class PlotWindow(QMainWindow):
 				with open(dir_name, 'rb') as f:
 					results = pickle.load(f, encoding='latin1')
 			plots.append(alias)
-			self.update_plot('ew', results, color_list[len(plots) - 1], plots)
+			self.update_plot(x, results, color_list[len(plots) - 1], plots)
 			if len(plots) ==1:
 				self.plot_field(field)
 			elif field != self.field_value:
