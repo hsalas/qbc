@@ -92,7 +92,8 @@ alias_dict={
 'mass' : 'cluster_mass',
 'com' : 'sep_comoving',
 'pro' : 'sep_proper',
-'r200' : 'sep_200'
+'r200' : 'sep_200',
+'z' : 'z_cluster'
 }
 
 # ----- Functions -----
@@ -649,6 +650,9 @@ def results_table(x, target1,target2,target3):
 	elif x == 'ew':
 		bi = Column(np.zeros(len(a)), name='ew_i')
 		bf = Column(np.zeros(len(a)), name='ew_f')
+	elif x == 'z':
+		bi = Column(np.zeros(len(a)), name='z_i')
+		bf = Column(np.zeros(len(a)), name='z_f')
 	dn = Column(np.zeros(len(a)), name='dn')
 	sigma_n_mas = Column(np.zeros(len(a)), name='sigma+_n')
 	sigma_n_menos = Column(np.zeros(len(a)), name='sigma-_n')
@@ -1020,7 +1024,7 @@ if __name__ == '__main__':
 	mass_str = '-mass_10e'+str(np.log10(min_mass.value))+'_to_10e'+str(np.log10(max_mass.value))
 	ew_str = '-rew_'+str(min_EW.value)+'_to_'+str(max_EW.value)
 	z_str = '-z_{:.2f}_to_{:.2f}'.format(min_z, max_z)
-	ip_str = '-ip_{}_{:1f}_to_{:1f}'.format(dd, min_IP, max_IP)
+	ip_str = '-ip_{}_{:.1f}_to_{:.1f}'.format(dd, min_IP, max_IP)
 
 	if sn == 'global':
 		sn_str = '-s_{:.1f}_global'.format(s)
