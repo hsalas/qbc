@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''Creates GUI for ploting the results of qbc_mgii.py
 
 Author: Hector Salas <hsalas@das.uchile.cl>'
@@ -124,8 +125,9 @@ class RadioButtonWidget(QWidget):
 		#create the radio buttons
 		self.radio_button_list = []
 		for each in button_list:
-			each_s = str(each)
-			self.radio_button_list.append(QRadioButton(each_s))
+			if type(each) == int or type(each) == float:
+				each = str(each)
+			self.radio_button_list.append(QRadioButton(each))
 
 		#set the default checked value
 		self.radio_button_list[0].setChecked(True)
@@ -376,7 +378,7 @@ class PlotWindow(QMainWindow):
 		self.cluster_type_buttons = RadioButtonWidget('Cluster Z Type', '', ['Spectroscopic','Photometric'])
 		self.grid_buttons = RadioButtonWidget('Grid', '', ['Log', 'SNP', 'Linear'])
 		self.signal2noise_buttons = RadioButtonWidget('S2N', '', ['Local', 'Global'])
-		self.limit_by_buttons = RadioButtonWidget('Limit by', '', [u'Lyman \u03b1', 'CIV'])
+		self.limit_by_buttons = RadioButtonWidget('Limit by', '', [u'Lyman α', 'CIV'])
 		self.nbins_widget = RadioButtonWidget('#bins', '', ['x0.5', 'x1.0', 'x2.0'])
 		self.distance_buttons.setFixedHeight(self.height_select_area + 15)
 		self.grid_buttons.setFixedSize(self.width_select_area, self.height_select_area + 20)
