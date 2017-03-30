@@ -14,7 +14,7 @@ from PyQt4.QtGui import *
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from astropy.table import Table, QTable, Column
-from plots import plot_dNdz_vs_x
+from plots import plot_dNdz_vs_x, plot_ntr06
 import matplotlib.pyplot as plt
 import random
 import pickle
@@ -100,6 +100,10 @@ class MatplolibPlot(QDialog):
 
 	def plot_field_value(self, field_value):
 		self.ax.plot(self.xlim, [field_value]*2, 'k--', lw=2, label='_nolegend_')
+		self.canvas.draw()
+
+	def plot_NTR06(self, W, N):
+		plot_ntr06(self.ax, W,N)
 		self.canvas.draw()
 
 	def clear_plots(self):
@@ -202,11 +206,21 @@ class LineEdit(QWidget):
 
 	def get_number(self):
 		num = self.lineedit.text()
-		num = float(num)
+		if num.count(',') == 1:
+			num = str(num)
+			index = num.index(',')
+			num1 = float(num[:index])
+			num2 =float(num[index + 1:])
+			num = (num1, num2)
+		else:
+			num = float(num)
 		return (num)
 	
 	def set_default(self, num):
-		text = '{:.1f}'.format(num)
+		if type(num) == float: 
+			text = '{:.1f}'.format(num)
+		elif type(num) == tuple:
+			text = '{:.3f},{:.3f}'.format(num[0], num[1])
 		self.lineedit.setText(text)
 
 class SpinBox(QWidget):
@@ -473,6 +487,10 @@ class PlotWindow(QMainWindow):
 		#plots the field value
 		self.plot_view.plot_field_value(field)
 
+	def plot_field_ntr06(self, field):
+		#plots field value for dndz v ew given by  ntr06
+		self.plot_view.plot_NTR06(field[0], field[1])
+
 	def clear_plot(self):
 		#clears the current plot
 		self.plot_view.clear_plots()
@@ -486,10 +504,12 @@ class PlotWindow(QMainWindow):
 			x_str ='dndz_v_b/'
 			x = 'b'
 			xlabel = 'Impact Parameter'
+			
 		elif x_index == 2:
 			x_str = 'dndz_v_ew/'
 			x = 'ew'
 			xlabel = 'Equivalent Width'
+			
 		elif x_index == 3:
 			x_str = 'dndz_v_z/'
 			x = 'z'
@@ -537,7 +557,6 @@ class PlotWindow(QMainWindow):
 
 		field =self.field_widget.get_number()
 		
-		
 		limit_str = '-lim_{}'.format(limit)
 		grid_str = '{}_n{:.1f}'.format(grid, nbins)
 		mass_str = '-mass_10e{}_to_10e{}'.format(masslim[0], masslim[1])
@@ -562,14 +581,31 @@ class PlotWindow(QMainWindow):
 					results = pickle.load(f, encoding='latin1')
 			plots.append(alias)
 			self.update_plot(x, results, color_list[len(plots) - 1], plots, xlabel)
-			if len(plots) ==1:
-				self.plot_field(field)
-			elif field != self.field_value:
-				self.plot_field(field)
-				self.field_value = field
-			elif self.cleared == 'yes':
-				self.plot_field(field)
-				self.cleared = 'no' 
+			if x_index ==1:
+				if type(field) != float:
+					field = 0.3
+					self.field_widget.set_default(field)
+				if len(plots) ==1:
+					self.plot_field(field)
+				elif field != self.field_value:
+					self.plot_field(field)
+					self.field_value = field
+				elif self.cleared == 'yes':
+					self.plot_field(field)
+					self.cleared = 'no' 
+			elif x_index ==2:
+				if type(field) != tuple:
+					field = (0.509, 1.089)
+					self.field_widget.set_default(field)
+				if len(plots) ==1:
+					self.plot_field_ntr06(field)
+				elif field != self.field_value:
+					self.plot_field_ntr06(field)
+					self.field_value = field
+				elif self.cleared == 'yes':
+					self.plot_field_ntr06(field)
+					self.cleared = 'no' 
+		
 		else:
 			print(dir_name)
 			print('File not found, make sure qbc_mgii.py was run for this configuration')

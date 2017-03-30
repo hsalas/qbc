@@ -353,6 +353,21 @@ def plot_dist_cluster(cluster, spec, phot):
 	#fig.savefig('/home/hector/Dropbox/Tejos_Salas/figs/cluster_distribution.png')
 	plt.show()
 
+def plot_ntr06(ax, N, W):
+	"""
+	Parameters
+
+		ax : axis
+			Matplotlib axis
+	Return
+	------
+		Plots into ax.
+
+	"""
+	x = np.arange(0.01, 10, 0.01)
+	y = N/W*np.exp(-x/W)
+	ax.plot(x, y, 'k--', lw=2, label='_nolegend_')
+
 if __name__ == '__main__':
 	pass
 	# plots_wmin()
