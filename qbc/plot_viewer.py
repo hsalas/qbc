@@ -36,8 +36,9 @@ n = [0.5, 1.0, 2.0]
 sig = [0.0, 1.0, 2.0, 3.0]
 ewlims = [(0.6, 2.0), (0.6, 1.0), (1.0, 1.5), (1.5, 2.0) ]
 masslims = [ (13.6, 16.0), (13.6, 14.0), (14.0, 14.2), (14.20, 16.0)]
-zlims = [(0.36,0.44), (0.44,0.52), (0.52,0.60)]
-iplims = [(0.1,12), (0.1,40)]
+zlims = [(0.36, 0.60), (0.36,0.44), (0.44,0.52), (0.52,0.60)]
+iplims = [(0.1,12), (0.1,40), (0.1,1),(1,2)]
+iplims_2 = [(0.1,1), (0.1,2)]
 distances = ['com', 'pro', 'r200']
 grids = ['log', 'snp', 'linear']
 cl_types = ['spec','phot']
@@ -84,11 +85,11 @@ class MatplolibPlot(QDialog):
 		self.ylim = (0.01, 30)
 		self.elinewidth = 2
 
-	def make_plot(self, X, table, color, legend):
+	def make_plot(self, X, table, color, legend, xlabel):
 		# plot_dNdz(self.ax, table , marker=self.marker, annotate=True, c=color, capsize=0, lw=0.5, ms=self.ms, ls='None', elinewidth=self.elinewidth, annotate_size=self.annotate_size)
 		plot_dNdz_vs_x(X, self.ax, table , marker=self.marker, annotate=True, c=color, capsize=0, lw=0.5, ms=self.ms, ls='None', elinewidth=self.elinewidth, annotate_size=self.annotate_size)
 		self.ax.set_ylabel('dn/dz', fontsize=self.labels_size)
-		self.ax.set_xlabel('Impact parameter', fontsize=self.labels_size)
+		self.ax.set_xlabel(xlabel, fontsize=self.labels_size)
 		self.ax.set_xlim(self.xlim)
 		self.ax.set_ylim(self.ylim)
 		self.ax.set_xscale('log')
@@ -464,9 +465,9 @@ class PlotWindow(QMainWindow):
 		self.plot_button.clicked.connect(self.instantiate_plot)
 		self.clear_button.clicked.connect(self.clear_plot)
 
-	def update_plot(self, X, name, color, legend):
+	def update_plot(self, X, name, color, legend, xlabel):
 		#update the plot image
-		self.plot_view.make_plot(X, name, color, legend)
+		self.plot_view.make_plot(X, name, color, legend, xlabel)
 
 	def plot_field(self, field):
 		#plots the field value
@@ -480,6 +481,23 @@ class PlotWindow(QMainWindow):
 	def instantiate_plot(self):
 
 		#retrive Values from interface
+		x_index, x_value = self.dndz_v_x.selected()
+		if x_index == 1:
+			x_str ='dndz_v_b/'
+			x = 'b'
+			xlabel = 'Impact Parameter'
+		elif x_index == 2:
+			x_str = 'dndz_v_ew/'
+			x = 'ew'
+			xlabel = 'Equivalent Width'
+		elif x_index == 3:
+			x_str = 'dndz_v_z/'
+			x = 'z'
+			xlabel = 'Redshift'
+
+		if x_index != self.x_default_index:
+			self.clear_plot()
+			self.x_default_index = x_index
 
 		grid_value = self.grid_buttons.selected_button()
 		grid = grids[grid_value]	
@@ -519,20 +537,6 @@ class PlotWindow(QMainWindow):
 
 		field =self.field_widget.get_number()
 		
-		x_index, x_value = self.dndz_v_x.selected()
-		if x_index == 1:
-			x_str ='dndz_v_b/'
-			x = 'b'
-		elif x_index == 2:
-			x_str = 'dndz_v_ew/'
-			x = 'ew'
-		elif x_index == 3:
-			x_str = 'dndz_v_z/'
-			x = 'z'
-
-		if x_index != self.x_default_index:
-			self.clear_plot()
-			self.x_default_index = x_index
 		
 		limit_str = '-lim_{}'.format(limit)
 		grid_str = '{}_n{:.1f}'.format(grid, nbins)
@@ -542,7 +546,7 @@ class PlotWindow(QMainWindow):
 		ip_str = '-ip_{}_{:.1f}_to_{:.1f}'.format(distance, iplim[0], iplim[1])
 		sn_str = '-s_{:.1f}_{}'.format(significance_value, s2n)
 
-		alias = 'mass {} to {}, ew {} to {}, z {} to {}, s {}, {}, {}'.format(masslim[0], masslim[1], ewlim[0], ewlim[1], zlim[0], zlim[1], significance_value, cl_type, limit)
+		alias = 'IP {}-{}, M {}-{}, EW {}-{}, Z {}-{}, S {}, {}, {}'.format(iplim[0], iplim[1], masslim[0], masslim[1], ewlim[0], ewlim[1], zlim[0], zlim[1], significance_value, cl_type, limit)
 		
 		dir_name = '../saved_files/'+x_str+grid_str+limit_str+mass_str+ew_str+z_str+ip_str+sn_str+'/{}/results.pickle'.format(cl_type)
 		color_list = xkcd_color_list(banned=['white'])
@@ -557,7 +561,7 @@ class PlotWindow(QMainWindow):
 				with open(dir_name, 'rb') as f:
 					results = pickle.load(f, encoding='latin1')
 			plots.append(alias)
-			self.update_plot(x, results, color_list[len(plots) - 1], plots)
+			self.update_plot(x, results, color_list[len(plots) - 1], plots, xlabel)
 			if len(plots) ==1:
 				self.plot_field(field)
 			elif field != self.field_value:

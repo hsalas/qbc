@@ -43,10 +43,16 @@ def plot_dNdz_vs_x(X, ax, tab, xlabel=None, ylabel=None, annotate=False, title=N
 		Plots into ax.
 
 	"""
+
 	if X == 'b':
 		x = (tab['b_i']+tab['b_f'])/2.0
+		xerr = (tab['b_f']-tab['b_i'])/2.0
 	elif X == 'ew':
 		x = (tab['ew_i']+tab['ew_f'])/2.0
+		xerr = (tab['ew_f']-tab['ew_i'])/2.0
+	elif X == 'z':
+		x = (tab['z_i']+tab['z_f'])/2.0
+		xerr = (tab['z_f']-tab['z_i'])/2.0
 	cond = tab['dn/dz'] > 0
 	aux = tab[cond]
 	y = np.zeros(len(tab))+0.01
@@ -56,7 +62,7 @@ def plot_dNdz_vs_x(X, ax, tab, xlabel=None, ylabel=None, annotate=False, title=N
 	# y = 31
 	yerr = [[i['sigma-_dn/dz'], i['sigma+_dn/dz']] for i in tab]
 	yerr = np.column_stack(yerr)  
-	ax.errorbar(x, tab['dn/dz'], xerr=None, yerr=yerr, **kwargs)
+	ax.errorbar(x, tab['dn/dz'], xerr=xerr, yerr=yerr, **kwargs)
 	if xlabel is not None:
 		ax.set_xlabel(xlabel)
 	if ylabel is not None:

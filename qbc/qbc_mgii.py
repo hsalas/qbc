@@ -684,6 +684,9 @@ def results_table(x, target1,target2,target3):
 		elif x == 'ew':
 			results['ew_i'][i] = a[i - 1].value
 			results['ew_f'][i] = a[i].value
+		elif x == 'z':
+			results['z_i'][i] = a[i - 1]
+			results['z_f'][i] = a[i]
 		results['dn'][i] = dn
 		results['sigma+_n'][i] = err_plus(dn)
 		results['sigma-_n'][i] = err_minus(dn)
@@ -697,8 +700,10 @@ def results_table(x, target1,target2,target3):
 			raise ValueError('This should not happen.')	
 	if (x == 'com' or x == 'pro') or x =='r200':	 
 		results['b_i'][0] = min_IP# pensar una mejor forma de hacer esto
-	elif x=='ew':
+	elif x== 'ew':
 		results['ew_i'][0] = min_EW.value
+	elif x== 'z':
+		results['z_i'][0] = min_z
 	return(results)
 
 def cluster_table(cluster, z_min, z_max, min_mass, max_mass):
