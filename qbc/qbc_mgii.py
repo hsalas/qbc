@@ -113,6 +113,10 @@ def names(alias):
 	except KeyError:
 		raise KeyError('''select a valid tag (-d) 'com' (comoving distance), 'pro' (proper distance) or '200' (r200 distance) or mass (cluster mass)''')
 
+def model(x, W, N):
+	'''model for dn/dzdw'''
+	return(float(N/W)*np.exp(-x/W)) 
+
 def dztodv(dz,z):
 	'''Transform a redshift difference (dz) to a velocity difference at redshift z, the result is given in Km/s
 	
