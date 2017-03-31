@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from xkcd_rgb import *
+# from qbc_mgii import model
 from astropy.io import fits
 from astropy.table import Table,QTable, Column
 
@@ -353,7 +354,7 @@ def plot_dist_cluster(cluster, spec, phot):
 	#fig.savefig('/home/hector/Dropbox/Tejos_Salas/figs/cluster_distribution.png')
 	plt.show()
 
-def plot_ntr06(ax, N, W):
+def plot_ntr06(ax, W, N):
 	"""
 	Parameters
 
@@ -365,7 +366,8 @@ def plot_ntr06(ax, N, W):
 
 	"""
 	x = np.arange(0.01, 10, 0.01)
-	y = N/W*np.exp(-x/W)
+	y = float(N/W)*np.exp(-x/W)
+	# y = model(x, W, N)
 	ax.plot(x, y, 'k--', lw=2, label='_nolegend_')
 
 if __name__ == '__main__':

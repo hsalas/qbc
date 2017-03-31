@@ -15,6 +15,8 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from astropy.table import Table, QTable, Column
 from plots import plot_dNdz_vs_x, plot_ntr06
+from qbc_mgii import model
+from numpy import isclose 
 import matplotlib.pyplot as plt
 import random
 import pickle
@@ -37,7 +39,7 @@ sig = [0.0, 1.0, 2.0, 3.0]
 ewlims = [(0.6, 2.0), (0.6, 1.0), (1.0, 1.5), (1.5, 2.0) ]
 masslims = [ (13.6, 16.0), (13.6, 14.0), (14.0, 14.2), (14.20, 16.0)]
 zlims = [(0.36, 0.60), (0.36,0.44), (0.44,0.52), (0.52,0.60)]
-iplims = [(0.1,12), (0.1,40), (0.1,1),(1,2)]
+iplims = [(0.1,12), (0.1,40), (0.1,1), (1,2), (2,3), (0.1,2)]
 iplims_2 = [(0.1,1), (0.1,2)]
 distances = ['com', 'pro', 'r200']
 grids = ['log', 'snp', 'linear']
@@ -45,10 +47,12 @@ cl_types = ['spec','phot']
 signal2noise = ['local', 'global']
 limit_by = ['lya', 'civ']
 color_counter = 0
+
 plots = []
 
 class MatplolibPlot(QDialog):
-	"""Creates a Widget containing a plot using matplotlib"""
+	"""This class creates a widget with an embeded matplotlib window for ploting, as well as functions to update an clear the plot window. 
+	In addition provides a few functions that calls to the desired plots from plots.py"""
 	def __init__(self):
 		super(MatplolibPlot, self).__init__()
 
@@ -86,32 +90,53 @@ class MatplolibPlot(QDialog):
 		self.elinewidth = 2
 
 	def make_plot(self, X, table, color, legend, xlabel):
-		# plot_dNdz(self.ax, table , marker=self.marker, annotate=True, c=color, capsize=0, lw=0.5, ms=self.ms, ls='None', elinewidth=self.elinewidth, annotate_size=self.annotate_size)
+		'''Calls to dndz_vs_x from plots.py. View plots.py for documentation on dndz_vs_x'''
 		plot_dNdz_vs_x(X, self.ax, table , marker=self.marker, annotate=True, c=color, capsize=0, lw=0.5, ms=self.ms, ls='None', elinewidth=self.elinewidth, annotate_size=self.annotate_size)
+		self.ax.legend(legend, loc='upper right', fontsize=self.legend_size, numpoints=1, framealpha=1)
 		self.ax.set_ylabel('dn/dz', fontsize=self.labels_size)
 		self.ax.set_xlabel(xlabel, fontsize=self.labels_size)
 		self.ax.set_xlim(self.xlim)
 		self.ax.set_ylim(self.ylim)
 		self.ax.set_xscale('log')
 		self.ax.set_yscale('log')
-		self.ax.legend(legend, loc='upper right', fontsize=self.legend_size, numpoints=1)	
 		self.ax.minorticks_on()
 		self.canvas.draw()
 
-	def plot_field_value(self, field_value):
-		self.ax.plot(self.xlim, [field_value]*2, 'k--', lw=2, label='_nolegend_')
+	def plot_field_value(self, field_value, color):
+		'''Plots the line  y=field_value
+		inputs:	
+			field_value:	heigth of the line
+			color:	Color of the line
+		returns:
+			plot with the line
+		'''
+		self.ax.plot(self.xlim, [field_value]*2, color=color, linestyle='dashed', marker=',' , lw=2, label='_nolegend_')
+		self.canvas.draw()
+
+	def plot_region(self, min, max, color):
+		'''Plots a shaded regin between min and max 
+		inputs:	
+			min:	top of the shaded area
+			max:	bottom of the shaded area
+			color:	Color of the line
+		returns:
+			plot with the shaded area
+		'''
+		self.ax.fill_between(self.xlim, field_model_min, field_model_max, facecolor=color, alpha=0.3, label='_nolegend_', linewidth=0)
 		self.canvas.draw()
 
 	def plot_NTR06(self, W, N):
+		'''''Calls to the function plot_ntr06 from plots.py. View plots.py for documentation on plot_ntr06'''
 		plot_ntr06(self.ax, W,N)
 		self.canvas.draw()
 
 	def clear_plots(self):
+		'''Clears the plot window'''
 		self.figure.clf()
 		self.ax = self.figure.add_subplot(111)
 		self.canvas.draw()
 		del plots[:]
-
+		
 class RadioButtonWidget(QWidget):
 	'''this class cretes a gropu of radio buttons froam a given list of labels'''
 
@@ -205,6 +230,7 @@ class LineEdit(QWidget):
 		self.setLayout(self.main_layout)
 
 	def get_number(self):
+		'''Retrieves the value entered on the widget'''
 		num = self.lineedit.text()
 		if num.count(',') == 1:
 			num = str(num)
@@ -217,10 +243,11 @@ class LineEdit(QWidget):
 		return (num)
 	
 	def set_default(self, num):
-		if type(num) == float: 
-			text = '{:.1f}'.format(num)
-		elif type(num) == tuple:
+		'''Sets the default value for the widget'''
+		if type(num) == tuple:
 			text = '{:.3f},{:.3f}'.format(num[0], num[1])
+		else:# if type(num) == float: 
+			text = '{:.3f}'.format(num)
 		self.lineedit.setText(text)
 
 class SpinBox(QWidget):
@@ -483,9 +510,13 @@ class PlotWindow(QMainWindow):
 		#update the plot image
 		self.plot_view.make_plot(X, name, color, legend, xlabel)
 
-	def plot_field(self, field):
+	def plot_field(self, field, color):
 		#plots the field value
-		self.plot_view.plot_field_value(field)
+		self.plot_view.plot_field_value(field, color)
+
+	def plot_field_borders(self, field_model_min, field_model_max, color):
+		#plot shaded bewteen borders
+		self.plot_view.plot_region(field_model_min, field_model_max, color)
 
 	def plot_field_ntr06(self, field):
 		#plots field value for dndz v ew given by  ntr06
@@ -556,7 +587,12 @@ class PlotWindow(QMainWindow):
 		nbins = n[nbins_value]
 
 		field =self.field_widget.get_number()
-		
+	
+		ew_mean = (ewlim[0] + ewlim[1])/2.0
+		field_model_mean = model(ew_mean,0.509, 1.089)
+		field_model_min = model(ewlim[0], 0.509, 1.089)
+		field_model_max = model(ewlim[1], 0.509, 1.089)
+
 		limit_str = '-lim_{}'.format(limit)
 		grid_str = '{}_n{:.1f}'.format(grid, nbins)
 		mass_str = '-mass_10e{}_to_10e{}'.format(masslim[0], masslim[1])
@@ -580,32 +616,49 @@ class PlotWindow(QMainWindow):
 				with open(dir_name, 'rb') as f:
 					results = pickle.load(f, encoding='latin1')
 			plots.append(alias)
-			self.update_plot(x, results, color_list[len(plots) - 1], plots, xlabel)
 			if x_index ==1:
+				plot = 'no'
 				if type(field) != float:
-					field = 0.3
-					self.field_widget.set_default(field)
-				if len(plots) ==1:
-					self.plot_field(field)
-				elif field != self.field_value:
-					self.plot_field(field)
+					field = field_model_mean#0.3
 					self.field_value = field
+					self.field_widget.set_default(field)
+				elif isclose(field, self.field_value, 3):
+					field = field_model_mean#0.3
+					self.field_value = field
+					self.field_widget.set_default(field)
+					plot = 'yes'
+				
+				if len(plots) ==1:
+					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
+					self.plot_field(field, color_list[len(plots) - 1])
 				elif self.cleared == 'yes':
-					self.plot_field(field)
+					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
+					self.plot_field(field, color_list[len(plots) - 1])
 					self.cleared = 'no' 
+				elif plot == 'yes':
+					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
+					self.plot_field(field, color_list[len(plots) - 1])
+				
+				elif field != self.field_value:
+					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
+					self.plot_field(field, color_list[len(plots) - 1])
+					self.field_value = field
+		
 			elif x_index ==2:
 				if type(field) != tuple:
 					field = (0.509, 1.089)
+					self.field_value = field
 					self.field_widget.set_default(field)
 				if len(plots) ==1:
 					self.plot_field_ntr06(field)
-				elif field != self.field_value:
-					self.plot_field_ntr06(field)
-					self.field_value = field
 				elif self.cleared == 'yes':
 					self.plot_field_ntr06(field)
 					self.cleared = 'no' 
+				elif field != self.field_value:
+					self.plot_field_ntr06(field)
+					self.field_value = field
 		
+			self.update_plot(x, results, color_list[len(plots) - 1], plots, xlabel)
 		else:
 			print(dir_name)
 			print('File not found, make sure qbc_mgii.py was run for this configuration')
