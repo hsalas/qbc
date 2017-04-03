@@ -33,10 +33,14 @@ plt.rcParams['ytick.minor.size'] = 6.0
 
 #parmaters to use
 
+# W = 0.509 # NTR06
+W = 0.51
+N = 1.11
+
 b = [12, 40]
 n = [0.5, 1.0, 2.0] 
 sig = [0.0, 1.0, 2.0, 3.0]
-ewlims = [(0.6, 2.0), (0.6, 1.0), (1.0, 1.5), (1.5, 2.0) ]
+ewlims = [(0.6, 2.0), (0.6, 1.0), (1.0, 1.5), (1.5, 2.0), (0.2,3.0)]
 masslims = [ (13.6, 16.0), (13.6, 14.0), (14.0, 14.2), (14.20, 16.0)]
 zlims = [(0.36, 0.60), (0.36,0.44), (0.44,0.52), (0.52,0.60)]
 iplims = [(0.1,12), (0.1,40), (0.1,1), (1,2), (2,3), (0.1,2)]
@@ -122,7 +126,7 @@ class MatplolibPlot(QDialog):
 		returns:
 			plot with the shaded area
 		'''
-		self.ax.fill_between(self.xlim, field_model_min, field_model_max, facecolor=color, alpha=0.3, label='_nolegend_', linewidth=0)
+		self.ax.fill_between(self.xlim, min, max, facecolor=color, alpha=0.3, label='_nolegend_', linewidth=0)
 		self.canvas.draw()
 
 	def plot_NTR06(self, W, N):
@@ -589,9 +593,9 @@ class PlotWindow(QMainWindow):
 		field =self.field_widget.get_number()
 	
 		ew_mean = (ewlim[0] + ewlim[1])/2.0
-		field_model_mean = model(ew_mean,0.509, 1.089)
-		field_model_min = model(ewlim[0], 0.509, 1.089)
-		field_model_max = model(ewlim[1], 0.509, 1.089)
+		field_model_mean = model(ew_mean,W, N)
+		field_model_min = model(ewlim[0], W, N)
+		field_model_max = model(ewlim[1], W, N)
 
 		limit_str = '-lim_{}'.format(limit)
 		grid_str = '{}_n{:.1f}'.format(grid, nbins)
@@ -639,14 +643,14 @@ class PlotWindow(QMainWindow):
 					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
 					self.plot_field(field, color_list[len(plots) - 1])
 				
-				elif field != self.field_value:
-					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
+				elif field != self.field_value:#ojo aca
+					# self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
 					self.plot_field(field, color_list[len(plots) - 1])
 					self.field_value = field
 		
 			elif x_index ==2:
 				if type(field) != tuple:
-					field = (0.509, 1.089)
+					field = (W, N)
 					self.field_value = field
 					self.field_widget.set_default(field)
 				if len(plots) ==1:
