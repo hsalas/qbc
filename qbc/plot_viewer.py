@@ -7,7 +7,6 @@ import sys
 import os
 
 from xkcd_rgb import * 
-
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
@@ -20,6 +19,7 @@ from numpy import isclose
 import matplotlib.pyplot as plt
 import random
 import pickle
+import re
 
 # matplotlib style
 plt.rcParams['figure.figsize'] = [4.0, 3.0]
@@ -50,9 +50,11 @@ grids = ['log', 'snp', 'linear']
 cl_types = ['spec','phot']
 signal2noise = ['local', 'global']
 limit_by = ['lya', 'civ']
-color_counter = 0
 
+color_counter = 0
 plots = []
+
+keepfield= 'no'
 
 class MatplolibPlot(QDialog):
 	"""This class creates a widget with an embeded matplotlib window for ploting, as well as functions to update an clear the plot window. 
@@ -210,7 +212,9 @@ class LineEdit(QWidget):
 		self.lineedit = QLineEdit()
 
 		#set up a validator to ensure only real numbers can be entered
-		self.validator = QDoubleValidator()
+		self.reg_exp = QRegExp('(\d+\.?\d*)\s*,?\s*(\d+\.?\d*)?\s?')
+		# self.validator = QDoubleValidator()
+		self.validator = QRegExpValidator(self.reg_exp)
 		self.lineedit.setValidator(self.validator)
 
 		#create the layout for the widget
@@ -233,17 +237,24 @@ class LineEdit(QWidget):
 		#set the layout for this widget
 		self.setLayout(self.main_layout)
 
+		#return pressed
+		self.lineedit.returnPressed.connect(self.enter)
+		
+	def enter(self):
+		global keepfield
+		keepfield = 'yes'
+		
 	def get_number(self):
 		'''Retrieves the value entered on the widget'''
-		num = self.lineedit.text()
-		if num.count(',') == 1:
-			num = str(num)
-			index = num.index(',')
-			num1 = float(num[:index])
-			num2 =float(num[index + 1:])
-			num = (num1, num2)
+		text = self.lineedit.text()
+		match = re.match(r'(\d+\.?\d*)\s*,?\s*(\d+\.?\d*)?\s?', text)
+		num = match.groups()
+		if num[1] == None:
+			num = float(num[0])
 		else:
-			num = float(num)
+			num0 = float(num[0])
+			num1 = float(num[1])
+			num = (num0, num1)
 		return (num)
 	
 	def set_default(self, num):
@@ -612,6 +623,7 @@ class PlotWindow(QMainWindow):
 		random.shuffle(color_list)
 		# print(dir_name)
 		
+		global keepfield 
 		if os.path.isfile(dir_name):
 			try:
 				with open(dir_name, 'rb') as f:
@@ -626,7 +638,9 @@ class PlotWindow(QMainWindow):
 					field = field_model_mean#0.3
 					self.field_value = field
 					self.field_widget.set_default(field)
-				elif isclose(field, self.field_value, 3):
+				elif keepfield == 'yes':
+					keepfield = 'no'
+				elif isclose(field, self.field_value, 0.3):
 					field = field_model_mean#0.3
 					self.field_value = field
 					self.field_widget.set_default(field)
@@ -653,6 +667,9 @@ class PlotWindow(QMainWindow):
 					field = (W, N)
 					self.field_value = field
 					self.field_widget.set_default(field)
+				elif keepfield == 'yes':
+					keepfield = 'no'
+
 				if len(plots) ==1:
 					self.plot_field_ntr06(field)
 				elif self.cleared == 'yes':
