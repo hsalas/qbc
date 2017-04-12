@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from xkcd_rgb import *
-# from qbc_mgii import model
 from astropy.io import fits
 from astropy.table import Table,QTable, Column
 
@@ -233,7 +232,7 @@ def plot_results(table, name, dist, show=False):
 def plot_results_show(fig, x, table, title='', color='cobalt'):
 
 		# fig = plt.figure()
-		color = get_xkcd_color(color)
+		color = get_xkcd_color_code(color)
 		fig.suptitle(title, fontsize=20)
 		ax = fig.add_subplot(111)
 		ax.set_ylabel('dn/dz', fontsize=18)
@@ -356,6 +355,7 @@ def plot_dist_cluster(cluster, spec, phot):
 
 def plot_ntr06(ax, W, N):
 	"""
+	Plots model for dn/dzdw 
 	Parameters
 
 		ax : axis
@@ -369,6 +369,25 @@ def plot_ntr06(ax, W, N):
 	y = float(N/W)*np.exp(-x/W)
 	# y = model(x, W, N)
 	ax.plot(x, y, 'k--', lw=2, label='_nolegend_')
+
+def plot_zhu(ax, w):
+	'''
+	Plots model for dn/dzdw
+	'''
+	g0 = 0.63
+	ag = 5.38
+	zg = 0.41
+	bg = 2.97
+	w0 = 0.33
+	aw = 1.21
+	zw = 2.24
+	bw = 2.43
+
+	z = np.arange(0.01,10, 0.01 )
+	G = g0*((1+z)**ag)/(1+(z/zg)**bg)
+	W= w0*((1+z)**aw)/(1+(z/zw)**bw)
+	y = G*np.exp(-w/W)
+	ax.plot(z, y,  'k--', lw=2, label='_nolegend_')
 
 if __name__ == '__main__':
 	pass

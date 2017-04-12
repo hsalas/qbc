@@ -3,25 +3,31 @@
 
 Author: Hector Salas <hsalas@das.uchile.cl>'
 '''
+#########################
+#Imports 
+
+#from libraries
 import sys
 import os
+import re
+import pickle
+import random
+import matplotlib.pyplot as plt
 
-from xkcd_rgb import * 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-
+from numpy import isclose, arange 
+from astropy.table import Table, QTable, Column
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-from astropy.table import Table, QTable, Column
-from plots import plot_dNdz_vs_x, plot_ntr06
-from qbc_mgii import model
-from numpy import isclose 
-import matplotlib.pyplot as plt
-import random
-import pickle
-import re
 
-# matplotlib style
+#from other scripts
+from xkcd_rgb import * 
+from qbc_mgii import model, model_zhu 
+from plots import plot_dNdz_vs_x, plot_ntr06, plot_zhu
+
+########################
+# matplotlib style3
 plt.rcParams['figure.figsize'] = [4.0, 3.0]
 plt.rcParams['xtick.labelsize'] = 17
 plt.rcParams['ytick.labelsize'] = 17
@@ -30,20 +36,34 @@ plt.rcParams['ytick.major.size'] = 12.0
 plt.rcParams['xtick.minor.size'] = 6.0
 plt.rcParams['ytick.minor.size'] = 6.0
 
+#######################
+#model parmaters 
 
-#parmaters to use
+#from NTR06
+# W = 0.509
+# N = 1.089 
 
-# W = 0.509 # NTR06
+#from zhu & menard
 W = 0.51
 N = 1.11
+g0 = 0.63
+ag = 5.38
+zg = 0.41
+bg = 2.97
+w0 = 0.33
+aw = 1.21
+zw = 2.24
+bw = 2.43
 
+#######################
+#Values to display un GUI options
 b = [12, 40]
 n = [0.5, 1.0, 2.0] 
 sig = [0.0, 1.0, 2.0, 3.0]
-ewlims = [(0.6, 2.0), (0.6, 1.0), (1.0, 1.5), (1.5, 2.0), (0.2,3.0)]
-masslims = [ (13.6, 16.0), (13.6, 14.0), (14.0, 14.2), (14.20, 16.0)]
-zlims = [(0.36, 0.60), (0.36,0.44), (0.44,0.52), (0.52,0.60)]
-iplims = [(0.1,12), (0.1,40), (0.1,1), (1,2), (2,3), (0.1,2)]
+ewlims = [(0.8, 6.0),(0.6, 2.0), (0.6, 1.0), (1.0, 1.5), (1.5, 2.0), (0.1,3.0)]
+masslims = [(14.1, 16.0), (13.6, 16.0), (13.6, 14.0), (14.0, 14.2), (14.20, 16.0)]
+zlims = [(0.43, 0.6), (0.43, 0.49), (0.49, 0.54), (0.54, 0.6),(0.36, 0.60), (0.36,0.44), (0.44,0.52), (0.52,0.60)]
+iplims = [(0.1,12), (0.1,40), (0.1,1), (1,2), (2,3), (0.1,2), (9,10)]
 iplims_2 = [(0.1,1), (0.1,2)]
 distances = ['com', 'pro', 'r200']
 grids = ['log', 'snp', 'linear']
@@ -51,10 +71,13 @@ cl_types = ['spec','phot']
 signal2noise = ['local', 'global']
 limit_by = ['lya', 'civ']
 
-color_counter = 0
+#######################
+#global variables 
 plots = []
-
+color_list = []
+color_counter = 0
 keepfield= 'no'
+#######################
 
 class MatplolibPlot(QDialog):
 	"""This class creates a widget with an embeded matplotlib window for ploting, as well as functions to update an clear the plot window. 
@@ -89,7 +112,7 @@ class MatplolibPlot(QDialog):
 		self.labels_size = 22
 		self.legend_size =16
 		self.annotate_size = 12
-		self.ms = 14
+		self.ms = 10
 		self.marker = 'o'
 		self.xlim = (0.1, 40)
 		self.ylim = (0.01, 30)
@@ -119,16 +142,19 @@ class MatplolibPlot(QDialog):
 		self.ax.plot(self.xlim, [field_value]*2, color=color, linestyle='dashed', marker=',' , lw=2, label='_nolegend_')
 		self.canvas.draw()
 
-	def plot_region(self, min, max, color):
+	def plot_region(self, min_, max_, color, x=None):
 		'''Plots a shaded regin between min and max 
 		inputs:	
-			min:	top of the shaded area
-			max:	bottom of the shaded area
+			min_:	top of the shaded area
+			max_:	bottom of the shaded area
 			color:	Color of the line
+			x (optional):	Array with x values, if not included x= xlim default vaue
 		returns:
 			plot with the shaded area
 		'''
-		self.ax.fill_between(self.xlim, min, max, facecolor=color, alpha=0.3, label='_nolegend_', linewidth=0)
+		if x == None:
+			x= self.xlim
+		self.ax.fill_between(x, min_, max_, facecolor=color, alpha=0.3, label='_nolegend_', linewidth=0)
 		self.canvas.draw()
 
 	def plot_NTR06(self, W, N):
@@ -136,6 +162,11 @@ class MatplolibPlot(QDialog):
 		plot_ntr06(self.ax, W,N)
 		self.canvas.draw()
 
+	def plot_Zhu(self, W):
+		'''''Calls to the function plot_ntr06 from plots.py. View plots.py for documentation on plot_ntr06'''
+		plot_zhu(self.ax, W)
+		self.canvas.draw()
+	
 	def clear_plots(self):
 		'''Clears the plot window'''
 		self.figure.clf()
@@ -529,13 +560,17 @@ class PlotWindow(QMainWindow):
 		#plots the field value
 		self.plot_view.plot_field_value(field, color)
 
-	def plot_field_borders(self, field_model_min, field_model_max, color):
+	def plot_field_borders(self, field_model_min, field_model_max, color, x=None):
 		#plot shaded bewteen borders
-		self.plot_view.plot_region(field_model_min, field_model_max, color)
+		self.plot_view.plot_region(field_model_min, field_model_max, color, x)
 
 	def plot_field_ntr06(self, field):
 		#plots field value for dndz v ew given by  ntr06
 		self.plot_view.plot_NTR06(field[0], field[1])
+
+	def plot_field_zhu(self, w2796):
+		#plots field value for dndz v ew given by  ntr06
+		self.plot_view.plot_Zhu(w2796)
 
 	def clear_plot(self):
 		#clears the current plot
@@ -602,11 +637,6 @@ class PlotWindow(QMainWindow):
 		nbins = n[nbins_value]
 
 		field =self.field_widget.get_number()
-	
-		ew_mean = (ewlim[0] + ewlim[1])/2.0
-		field_model_mean = model(ew_mean,W, N)
-		field_model_min = model(ewlim[0], W, N)
-		field_model_max = model(ewlim[1], W, N)
 
 		limit_str = '-lim_{}'.format(limit)
 		grid_str = '{}_n{:.1f}'.format(grid, nbins)
@@ -617,14 +647,15 @@ class PlotWindow(QMainWindow):
 		sn_str = '-s_{:.1f}_{}'.format(significance_value, s2n)
 
 		alias = 'IP {}-{}, M {}-{}, EW {}-{}, Z {}-{}, S {}, {}, {}'.format(iplim[0], iplim[1], masslim[0], masslim[1], ewlim[0], ewlim[1], zlim[0], zlim[1], significance_value, cl_type, limit)
-		
 		dir_name = '../saved_files/'+x_str+grid_str+limit_str+mass_str+ew_str+z_str+ip_str+sn_str+'/{}/results.pickle'.format(cl_type)
-		color_list = xkcd_color_list(banned=['white'])
-		random.shuffle(color_list)
 		# print(dir_name)
 		
-		global keepfield 
+		global keepfield
+		global color_list
+
+		#check if sved file exists 
 		if os.path.isfile(dir_name):
+			#load saved file
 			try:
 				with open(dir_name, 'rb') as f:
 					results = pickle.load(f)
@@ -632,7 +663,20 @@ class PlotWindow(QMainWindow):
 				with open(dir_name, 'rb') as f:
 					results = pickle.load(f, encoding='latin1')
 			plots.append(alias)
+
+			#condition to generate a list of colors
+			if len(plots) == 1:
+				color_list = xkcd_color_code_list(exclude_=['white', 'cream', 'light', 'pale', 'sky'])
+				random.shuffle(color_list)
+			#plot for dn/dz v b	
 			if x_index ==1:
+				#get field vallue from  model
+				ew_mean = (ewlim[0] + ewlim[1])/2.0
+				field_model_mean = model(ew_mean,W, N)
+				field_model_min = model(ewlim[0], W, N)
+				field_model_max = model(ewlim[1], W, N)
+				
+				#conditions to update field value
 				plot = 'no'
 				if type(field) != float:
 					field = field_model_mean#0.3
@@ -646,6 +690,7 @@ class PlotWindow(QMainWindow):
 					self.field_widget.set_default(field)
 					plot = 'yes'
 				
+				#conditions to plot field value
 				if len(plots) ==1:
 					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
 					self.plot_field(field, color_list[len(plots) - 1])
@@ -656,20 +701,21 @@ class PlotWindow(QMainWindow):
 				elif plot == 'yes':
 					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
 					self.plot_field(field, color_list[len(plots) - 1])
-				
 				elif field != self.field_value:#ojo aca
 					# self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1])
 					self.plot_field(field, color_list[len(plots) - 1])
 					self.field_value = field
-		
-			elif x_index ==2:
+			#plot dn/dz v ew
+			elif x_index == 2:
+				#conditions to update field value
 				if type(field) != tuple:
 					field = (W, N)
 					self.field_value = field
 					self.field_widget.set_default(field)
 				elif keepfield == 'yes':
 					keepfield = 'no'
-
+				
+				#conditions to plot field value
 				if len(plots) ==1:
 					self.plot_field_ntr06(field)
 				elif self.cleared == 'yes':
@@ -678,7 +724,36 @@ class PlotWindow(QMainWindow):
 				elif field != self.field_value:
 					self.plot_field_ntr06(field)
 					self.field_value = field
-		
+			#plot dn/dz v z
+			elif x_index == 3:
+				#get field vallue from  model from zhu & menard
+				ew_mean = (ewlim[0] + ewlim[1])/2.0
+				z = arange(0.01, 10, 0.01)
+				field_model_mean = model_zhu(z, ew_mean)
+				field_model_min = model_zhu(z, ewlim[0])
+				field_model_max = model_zhu(z, ewlim[1])
+				#conditions to update field value
+				if type(field) != float:
+					self.field_value = ew_mean
+					self.field_widget.set_default(ew_mean)
+				elif keepfield == 'yes':
+					keepfield = 'no'
+				elif isclose(field, self.field_value, 0.3):
+					self.field_value = ew_mean
+					self.field_widget.set_default(ew_mean)
+					plot = 'yes'
+				#conditions to plot field value
+				if len(plots) ==1:
+					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1], x=z)
+					self.plot_field_zhu(ew_mean)
+				elif self.cleared == 'yes':
+					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1], x=z)
+					self.plot_field_zhu(ew_mean)
+					self.cleared = 'no' 
+				elif field != self.field_value:#ojo aca
+					self.plot_field_borders(field_model_min, field_model_max, color_list[len(plots) - 1], x=z)
+					self.plot_field_zhu(ew_mean)
+					self.field_value = field
 			self.update_plot(x, results, color_list[len(plots) - 1], plots, xlabel)
 		else:
 			print(dir_name)

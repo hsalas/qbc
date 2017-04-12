@@ -117,6 +117,20 @@ def model(x, W, N):
 	'''model for dn/dzdw'''
 	return(float(N/W)*np.exp(-x/W)) 
 
+def model_zhu(z, W2796):
+	'''model for dn/dzdw from Zhu & Menard 2013'''
+	g0 = 0.63
+	ag = 5.38
+	zg = 0.41
+	bg = 2.97
+	w0 = 0.33
+	aw = 1.21
+	zw = 2.24
+	bw = 2.43
+	G_z = g0*((1+z)**ag)/(1+(z/zg)**bg)
+	W_z = w0*((1+z)**aw)/(1+(z/zw)**bw)
+	return(G_z*np.exp(-W2796/W_z))
+
 def dztodv(dz,z):
 	'''Transform a redshift difference (dz) to a velocity difference at redshift z, the result is given in Km/s
 	
@@ -247,15 +261,22 @@ def bin_same_number(tabla, name, begin, end, n):
 	if name =='mass':
 		if 'mass' in tabla.keys():
 			tag =  'mass'
+		else:
+			tag = names(name)
 	else:
 		tag = names(name)
 	aux = tabla[tag]
 	aux = np.asarray(aux)
 	aux.sort()
-	cond = aux < end
+	if name == 'mass':
+		aux = np.log10(aux)
+	cond = aux <= end
+	aux = aux[cond]
+	cond =aux >= begin
 	aux = aux[cond]
 	npt = len(aux)
 	bins = np.interp(np.linspace(begin, npt, n + 1), np.arange(npt), aux)
+	# import pdb; pdb.set_trace()
 	return(bins)
 
 def err_plus(n):
@@ -758,6 +779,7 @@ def cluster_table(cluster, z_min, z_max, min_mass, max_mass):
 	# If the cluster have a spectroscopic redshift dv is obtained from rho_200 and mass_200 ussing the virial eq.
 	# Otherwise the error in the photometric redshift is used
 	cluster['delta_v'] = np.zeros(len(cluster), dtype='f4') + sigma_v
+	cluster['delta_v'].to(u.km/u.s)
 	cond = cluster['z_spec'] == -1
 	cluster['delta_v'][cond] = dztodv(cluster['z_phot_err'][cond], cluster['z_phot'][cond])
 
@@ -1134,7 +1156,7 @@ if __name__ == '__main__':
 				print(results_phot)
 				plot_results_show(fig, x_value, results_phot, color='blue')
 				legend_phot = 'mass 10e{} Msun to 10e{} Msun, ew {} to {}, z {} to {}, s {}, {}, {}'.format(np.log10(min_mass.value), np.log10(max_mass.value), min_EW, max_EW, min_z, max_z, s, 'spec', limit_by)
-				llegend.append(legend_phot)
+				legend.append(legend_phot)
 			
 			#add legend and display plot
 			plt.legend(legend, loc='best', fontsize='medium' , numpoints=1)
