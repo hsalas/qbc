@@ -192,7 +192,9 @@ def r_sdss(z):
 		y: 	Sloan resolution of MgII_2796 at redshift z (float). 
 	'''
 	x = l_obs(l_0,z)
-	y = (2500.0-1500.0)/(lmax_sdss-lmin_sdss)*(x-lmin_sdss)+1500.0
+	# y = (2500.0-1500.0)/(lmax_sdss-lmin_sdss)*(x-lmin_sdss)+1500.0
+	# y = (2200.0-18000.0)/(lmax_sdss-lmin_sdss)*(x-lmin_sdss)+1500.0
+	y = 2000
 	return(y)
 
 def bins_edges(tabla, tipo, name, begin, end, n_bins, n):
@@ -391,6 +393,8 @@ def cuts_pares(s, z_min, z_max, min_EW, min_mass, max_mass, min_z, max_z, min_IP
 		cond = tabla['w_min_s1']*s*u.AA >  min_EW  #NT: me da la impresion que esta condicion esta mala; favor revisar
 	elif sn == 'local':
 		cond = tabla['w_min_s1_local']*s*u.AA >  min_EW  #NT: me da la impresion que esta condicion esta mala; favor revisar
+		cond_2 = tabla['w_min_s1_local']*s*u.AA < 0
+		tabla_rejected['rejected'][cond_2] = 'sn_local=-1'	
 	tabla_rejected['rejected'][cond] = 'w_min > min_EW'	
 	cond =	tabla_rejected['rejected'] == 'no'
 	tabla = tabla[cond]			
@@ -489,6 +493,8 @@ def cuts_hits(s, z_min, z_max, min_EW, max_EW, min_mass, max_mass, min_z, max_z,
 		cond = tabla['w_min_s1']*s*u.AA >  min_EW  #NT: me da la impresion que esta condicion esta mala; favor revisar
 	elif sn == 'local':
 		cond = tabla['w_min_s1_local']*s*u.AA >  min_EW  #NT: me da la impresion que esta condicion esta mala; favor revisar
+		cond_2 = tabla['w_min_s1_local']*s*u.AA < 0
+		tabla_rejected['rejected'][cond_2] = 'sn_local=-1'
 	tabla_rejected['rejected'][cond] = 'w_min > min_EW'			
 	cond = abs(tabla['dv']) > tabla['dv_cluster']
 	tabla_rejected['rejected'][cond] = 'dv > dv_cluster'
