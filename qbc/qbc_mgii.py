@@ -1,6 +1,6 @@
 from astropy.io import fits
 from astropy.constants import c, G
-from plots import plot_results_show, plot_overlap, plot_gc, plot_sum
+from plots import plot_results_show, plot_overlap,plot_sky_overlap, plot_gc, plot_sum
 from astropy.table import QTable
 from astropy.table import Column
 from astropy.cosmology import Planck15 as cosmo
@@ -879,6 +879,9 @@ def mgii_table(mgii, mgii_search, min_EW, max_EW, z_max_cluster, ls):
 	#removes aborbers with ew > max_EW
 	cond = mgii['rew_mgii_2796']*u.AA > max_EW
 	mgii['rejected'][cond] = 'rew_mgii_2796 > max_EW'
+	#remove absorbers with index_qs_hs =-1
+	cond = mgii['index_qso_hs']==-1
+	mgii['rejected'][cond] = 'index_qso_hs =-1'
 
 	mgii_0 = mgii.copy()
 	cond = mgii['rejected'] != 'no'
@@ -1177,6 +1180,7 @@ if __name__ == '__main__':
 		cumulo_2 = cumulo_0[10**14.0 < cumulo_0['mass'].value]
 		cumulo_2 = cumulo_2[cumulo_2['mass'].value < 10**14.2]
 		cumulo_3 = cumulo_0[10**14.2 < cumulo_0['mass'].value]
+		cumulo_15 = cumulo_0[15 <= cumulo_0['richness']]
 		cl_mass = [cumulo_0, cumulo_1, cumulo_2, cumulo_3]
 		cl_mass_label = ['Clusters', 'Clusters with 10^13.6'+'['+r'$M_{\odot}$'+'] < M < 10^14.0'+'['+r'$M_{\odot}$'+']','Clusters with 10^14.0'+'['+r'$M_{\odot}$'+'] < M < 10^14.2'+'['+r'$M_{\odot}$'+']', 'Clusters with 10^14.2'+'['+r'$M_{\odot}$'+'] < M']
 		
@@ -1191,13 +1195,15 @@ if __name__ == '__main__':
 		mgii_rew_label = ['MgII 2796', 'MgII 2796 with 0.6 [AA] < REW < 1.0 [AA]', 'MgII 2796 with 1.0 < REW < 1.5 [AA]', 'MgII 2796 with 1.5 [AA] < REW < 2.0 [AA]']
 		
 		# Redshift type bins for galaxy clusters, photometric or spectroscopic
-		cluster_list = [cumulo_0, cumulo_0[cumulo_0['z_spec'] != -1], cumulo_0[cumulo_0['z_spec'] == -1]]
+		# cluster_list = [cumulo_0, cumulo_0[cumulo_0['z_spec'] != -1], cumulo_0[cumulo_0['z_spec'] == -1]]
+		cluster_list = [cumulo_15, cumulo_15[cumulo_15['z_spec'] != -1], cumulo_15[cumulo_15['z_spec'] == -1]]
 		cluster_list_label = ['Clusters', 'Spectroscopic Clusters', 'Photometric Clusters']
 		
 		#call to function that makes the plot
 		# plot_overlap(cl_mass, cl_mass_label, mgii_rew, mgii_rew_label)#Plot for mass bins and ew bins	
 		plot_overlap(cluster_list, cluster_list_label, [mgii], ['MgII'])#Plot for redshift type bins and ew bins
-		print('{} galaxy clusters, {} MgII absorbers and {} Qso'.format(len(cumulo_0), len(mgii_0), len(qso)))
+		plot_sky_overlap(cluster_list[1:], cluster_list_label, [mgii], ['MgII'])
+		print('{} galaxy clusters, {} MgII absorbers and {} Qso'.format(len(cumulo_15), len(mgii_0), len(qso)))
 	
 	#Run fo dn/(dz/dw) vs ew (In development)
 	elif  m==4:

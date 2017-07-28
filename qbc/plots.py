@@ -1,8 +1,10 @@
 import os
 import pickle
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import astropy.units as u
+import astropy.coordinates as coord
 
 from xkcd_rgb import *
 from astropy.io import fits
@@ -309,8 +311,8 @@ def plot_overlap(clusters, clusters_label, mgii, mgii_label, z_bins=np.arange(0,
 		z_bins(optional): Array with the bins edges (numpy.ndarray).
 	'''
 	lw=[2,1,1,1]
-	colors_cl = cm.winter(np.linspace(0, 1, len(mgii)+2))
-	colors_mgii = cm.autumn(np.linspace(0, 1, len(mgii)+2))
+	colors_cl = cm.winter(np.linspace(0, 1, len(clusters)))
+	colors_mgii = cm.autumn(np.linspace(0, 1, len(mgii)))
 	fig = plt.figure()
 	ax = fig.add_subplot(1,1,1)
 	for i in range(len(clusters)):
@@ -322,6 +324,45 @@ def plot_overlap(clusters, clusters_label, mgii, mgii_label, z_bins=np.arange(0,
 	ax.legend()
 	ax.set_xlim(0,1.25)
 	ax.set_ylim(0.850)
+	#plt.title(r'Frequecy vs Redshift')
+	#fig.savefig('/home/hector/Dropbox/Tejos_Salas/figs/overlap.png')
+	plt.show()
+
+def plot_sky_overlap(clusters, clusters_label, mgii, mgii_label):
+	'''Plot the sky overlap of QSOs LOS and galaxy clusters.
+
+	inputs:
+		clusters: Llist of tables with the galaxy clusters data (QTable).
+		clusters_label: List with labels for he clusters
+		mgii: List of tables with the Qso data (QTable).
+		mgii_label: List with mgii labels
+		z_bins(optional): Array with the bins edges (numpy.ndarray).
+	'''
+	# size=[10,5,5,5]
+	colors_cl = cm.winter(np.linspace(0, 1, len(clusters)+1))
+	colors_mgii = cm.autumn(np.linspace(0, 1, len(mgii)))
+	fig = plt.figure()
+	# fig = plt.figure(figsize=(8,6))
+	ax = fig.add_subplot(111, projection="mollweide")
+	ax.set_xticklabels(['14h','16h','18h','20h','22h','0h','2h','4h','6h','8h','10h'])
+	ax.set_ylabel('Dec')
+	ax.set_xlabel('RA')
+	ax.grid(True)
+	for i in range(1,len(clusters)):
+		ra = coord.Angle(clusters[i]['ra']*u.degree)
+		ra = ra.wrap_at(180*u.degree)
+		dec = coord.Angle(clusters[i]['dec']*u.degree)
+		ax.scatter(ra.radian, dec.radian, color=colors_cl[i+1], s=0.8, marker =".")
+		# print(len(ra))
+	for i in range(len(mgii)):
+		ra = coord.Angle(mgii[i]['ra']*u.degree)
+		ra = ra.wrap_at(180*u.degree)
+		dec = coord.Angle(mgii[i]['dec']*u.degree)
+		ax.scatter(ra.radian, dec.radian, color=colors_mgii[i],s=0.8, marker=".")
+		# print(len(ra))
+	ax.legend()
+	# ax.set_xlim(0,1.25)
+	# ax.set_ylim(0.850)
 	#plt.title(r'Frequecy vs Redshift')
 	#fig.savefig('/home/hector/Dropbox/Tejos_Salas/figs/overlap.png')
 	plt.show()
