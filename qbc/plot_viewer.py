@@ -5,13 +5,14 @@ import os
  
 from xkcd_rgb import *
  
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
  
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from astropy.table import Table, QTable, Column
-from plots_v2 import plot_dNdz, plot_dNdz_vs_x
+from plots import plot_dNdz, plot_dNdz_vs_x
 import matplotlib.pyplot as plt
 import random
 import pickle

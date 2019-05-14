@@ -18,6 +18,68 @@ plt.rcParams['xtick.minor.size'] = 6.0
 plt.rcParams['ytick.minor.size'] = 6.0
 plt.rcParams['axes.labelsize'] = 22
 
+def plot_dNdz(ax, tab, xlabel=None, ylabel=None, annotate=False, title=None, annotate_size=12, **kwargs):
+    """
+    Parameters
+        ax : axis
+            Matplotlib axis
+        tab : QTable
+            Table with the results, must contain certain columns
+        outname : str, optional
+            Name of the output file to save the figure if given
+        xlabel : str, optional
+            Label of x-axis if given 
+        ylabel : str, optional
+            Label of y-axis if given
+        annotate : bool, optional
+            Whether to annotate info (hits and dz)
+        title: str, optional
+            Title of the graph
+ 
+    Return
+    ------
+        Plots into ax.
+ 
+    """
+    x = (tab['bi']+tab['bf'])/2.0
+    cond = tab['dn/dz'] > 0
+    aux = tab[cond]
+    y = np.zeros(len(tab))+0.01
+    for i in range(len(y)):
+        if i%2==0:
+            y[i]+=19   
+    # y = 31
+    yerr = [[i['sigma-_dn/dz'], i['sigma+_dn/dz']] for i in tab]
+    yerr = np.column_stack(yerr)  
+    ax.errorbar(x, tab['dn/dz'], xerr=None, yerr=yerr, **kwargs)
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    if title is not None:
+        ax.set_title(title)
+    if annotate:
+        for ii, row in enumerate(tab):
+            # import pdb; pdb.set_trace()
+            s1 = '{:.0f}'.format(row['dn'])
+            s2 = '{:.2f}'.format(row['dz'])
+            s3 = '{:.0f}'.format(row['#pares'])
+            if len(s1) > 5:
+                s1 ='{:.1e}'.format(row['dn'])
+            if len(s2) > 5:
+                s2 ='{:.1e}'.format(row['dz'])
+            if len(s3) > 5:
+                s3 ='{:.1e}'.format(row['#pares'])      
+            s = s1+'\n'+s2+'\n'+s3
+            # s = '{:.0f}\n{:.2f}\n{:.0f}'.format(row['dn'], row['dz'], row['#pares'])
+            x_annotate = x[ii]
+            y_annotate = y[ii]
+            if 'c' in  kwargs.keys():
+                c_annotate = kwargs['c']
+            else:
+                c_annotate = 'grey'
+            # ax.annotate(s, (x_annotate, y_annotate), rotation=0, ha='right', color=c_annotate, size=annotate_size, stretch='ultra-condensed')
+
 def plot_dNdz_vs_x(X, ax, tab, xlabel=None, ylabel=None, annotate=False, title=None, annotate_size=12, **kwargs):
 	"""
 	Parameters
